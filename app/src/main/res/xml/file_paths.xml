@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- 앱 전용 외부 저장소 하위 폴더 허용 (위에서 getExternalFilesDir("camera") 사용) -->
+    <external-files-path
+        name="ext_files"
+        path="." />
+    <!-- 내부 캐시나 files를 쓰려면 아래도 가능
+    <cache-path name="cache" path="."/>
+    <files-path name="files" path="."/>
+    -->
+</paths>

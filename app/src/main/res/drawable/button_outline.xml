@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- 배경색 흰색 -->
+    <solid android:color="@android:color/white" />
+
+    <!-- 파란색 외곽선 -->
+    <stroke
+        android:width="2dp"
+        android:color="#4B93FF" /> <!-- 파란색 (Material Blue) -->
+
+    <!-- 모서리 둥글게 (원하면) -->
+    <corners android:radius="20dp" />
+
+    <!-- 패딩 (텍스트 여백) -->
+    <padding
+        android:left="12dp"
+        android:top="8dp"
+        android:right="12dp"
+        android:bottom="8dp" />
+</shape>

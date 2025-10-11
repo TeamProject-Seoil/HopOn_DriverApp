@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="blue">#4B93FF</color>
+    // colors.xml 에 색상 정의 (추천)
+    <color name="bus_airport">#FF9800</color>
+    <color name="bus_maeul">#4CAF50</color>
+    <color name="bus_ganseon">#2196F3</color>
+    <color name="bus_jiseon">#4CAF50</color>
+    <color name="bus_sunhwan">#FFC107</color>
+    <color name="bus_gwangyeok">#F44336</color>
+    <color name="bus_default">#9E9E9E</color>
+    <color name="teal_700">#018786</color>
+    <color name="mainblue">#4B93FF</color>
+
+    <color name="cong_free_green">#2E7D32</color>     <!-- 여유 -->
+    <color name="cong_medium_yellow">#F9A825</color> <!-- 보통 -->
+    <color name="cong_busy_red">#D32F2F</color> <!-- 혼잡,매우혼잡 -->
+</resources>

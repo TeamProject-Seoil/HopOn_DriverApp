@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 상단 파란 바 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:gravity="center"
+        android:background="#4B93FF">
+
+        <ImageButton
+            android:id="@+id/notice_back_button"
+            android:layout_width="48dp"
+            android:layout_height="39dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="뒤로가기 버튼"
+            android:src="@drawable/ic_back"
+            android:layout_marginEnd="40dp"
+            app:tint="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/title_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="아이디/비밀번호 찾기"
+            android:layout_marginEnd="60dp"
+            android:textSize="25sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/white"/>
+    </LinearLayout>
+
+    <!-- 버튼 영역 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="2">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_find_id"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:background="@android:color/white"
+            android:text="아이디 찾기"
+            android:textSize="18sp"
+            android:backgroundTint="@null"
+            android:textColor="@color/black" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_find_pw"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:background="#4B93FF"
+            android:text="비밀번호 찾기"
+            android:textSize="18sp"
+            android:backgroundTint="@null"
+            android:textColor="@color/black" />
+    </LinearLayout>
+
+    <!-- 컨텐츠 영역 -->
+    <FrameLayout
+        android:id="@+id/frame_content"
+        android:background="@color/white"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+    <!-- layout_find_id.xml 포함 -->
+    <include
+        layout="@layout/layout_find_id"/>
+    <include
+        layout="@layout/layout_find_pw"/>
+
+    </FrameLayout>
+
+</LinearLayout>

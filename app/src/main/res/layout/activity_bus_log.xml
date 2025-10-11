@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F7F7F7">
+
+    <!-- 상단 파란 헤더 -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/header"
+        android:layout_width="0dp"
+        android:layout_height="88dp"
+        android:background="#4B93FF"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageButton
+            android:id="@+id/ivBack"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_back"
+            android:background="@android:color/transparent"
+            app:tint="#FFFFFF"
+            android:layout_marginStart="16dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintTop_toTopOf="parent"/>
+
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="운행 버스 기록"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textSize="20sp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 헤더 아래 얇은 그림자/구분선 -->
+    <View
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:background="#1F000000"
+        app:layout_constraintTop_toBottomOf="@id/header"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- 내용 카드 -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardDetail"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        app:cardCornerRadius="10dp"
+        app:cardElevation="2dp"
+        app:layout_constraintTop_toBottomOf="@id/header"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp">
+
+            <!-- 버스 : 320번 2848 -->
+            <TextView
+                android:id="@+id/lblBus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="버스 :"
+                android:textColor="#222222"
+                android:textSize="15sp"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"/>
+
+            <TextView
+                android:id="@+id/tvBusNumber"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="320번"
+                android:textStyle="bold"
+                android:textSize="20sp"
+                android:textColor="#111111"
+                android:layout_marginStart="8dp"
+                app:layout_constraintBaseline_toBaselineOf="@id/lblBus"
+                app:layout_constraintStart_toEndOf="@id/lblBus"/>
+
+            <TextView
+                android:id="@+id/tvBusRun"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" 2848"
+                android:textSize="13sp"
+                android:textColor="#9AA1A9"
+                app:layout_constraintBaseline_toBaselineOf="@id/tvBusNumber"
+                app:layout_constraintStart_toEndOf="@id/tvBusNumber"/>
+
+            <!-- 저상 여부 : [칩] -->
+            <TextView
+                android:id="@+id/lblLow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="저상 여부 :"
+                android:textColor="#222222"
+                android:textSize="15sp"
+                android:layout_marginTop="8dp"
+                app:layout_constraintTop_toBottomOf="@id/lblBus"
+                app:layout_constraintStart_toStartOf="parent"/>
+
+            <TextView
+                android:id="@+id/tvLowFloor"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="저상"
+                android:textColor="#12805A"
+                android:textSize="12sp"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:layout_marginStart="8dp"
+                app:layout_constraintBaseline_toBaselineOf="@id/lblLow"
+                app:layout_constraintStart_toEndOf="@id/lblLow"/>
+
+            <!-- 노선 : 북정환승센터 방면 -->
+            <TextView
+                android:id="@+id/lblRoute"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="노선 :"
+                android:textColor="#222222"
+                android:textSize="15sp"
+                android:layout_marginTop="8dp"
+                app:layout_constraintTop_toBottomOf="@id/lblLow"
+                app:layout_constraintStart_toStartOf="parent"/>
+
+            <TextView
+                android:id="@+id/tvRoute"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="북정환승센터 방면"
+                android:textColor="#111111"
+                android:textSize="15sp"
+                android:layout_marginStart="8dp"
+                app:layout_constraintBaseline_toBaselineOf="@id/lblRoute"
+                app:layout_constraintStart_toEndOf="@id/lblRoute"/>
+
+            <!-- 가운데 구분선 -->
+            <View
+                android:id="@+id/divider"
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:background="#E6E8EC"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp"
+                app:layout_constraintTop_toBottomOf="@id/lblRoute"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"/>
+
+            <!-- 하단 2열: 시작/종료 -->
+            <LinearLayout
+                android:id="@+id/rowTimes"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="2"
+                app:layout_constraintTop_toBottomOf="@id/divider"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="운행 시작 시간"
+                        android:textSize="14sp"
+                        android:textColor="#222222"/>
+
+                    <TextView
+                        android:id="@+id/tvStartTime"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="05:41"
+                        android:textStyle="bold"
+                        android:textSize="18sp"
+                        android:textColor="#111111"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="운행 종료 시간"
+                        android:textSize="14sp"
+                        android:textColor="#222222"/>
+
+                    <TextView
+                        android:id="@+id/tvEndTime"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="08:21"
+                        android:textStyle="bold"
+                        android:textSize="18sp"
+                        android:textColor="#111111"/>
+                </LinearLayout>
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
