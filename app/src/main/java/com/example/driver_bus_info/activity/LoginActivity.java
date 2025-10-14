@@ -10,6 +10,7 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -23,19 +24,6 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-/**
- * 로그인 화면 액티비티
- *
- * 기능 요약
- * - ID/PW 로그인
- * - 자동 로그인(앱 시작 시 refresh 토큰으로 재발급 시도)
- * - 권한/승인/동시 로그인 등 상태코드별 안내
- * - 로그인 중 UI 비활성화 → 결과에 따라 다시 활성화
- *
- * 주의
- * - 이 빌드는 DeviceInfo.getClientType()이 "DRIVER_APP" 이어야 정상
- * - 서버는 JWT aud(=clientType)와 X-Client-Type 헤더를 비교하므로 반드시 일치
- */
 public class LoginActivity extends AppCompatActivity {
 
     // 뷰
@@ -54,6 +42,10 @@ public class LoginActivity extends AppCompatActivity {
     private String deviceId;   // ANDROID_ID 사용
     private String clientType; // "DRIVER_APP" | "USER_APP" | "ADMIN_APP"
 
+    // 진행 중 콜 참조 (화면 종료 시 취소용)
+    private Call<ApiService.AuthResponse> refreshCall;
+    private Call<ApiService.AuthResponse> loginCall;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -66,7 +58,7 @@ public class LoginActivity extends AppCompatActivity {
         buttonLogin       = findViewById(R.id.buttonLogin);
         loginButtonBack   = findViewById(R.id.loginButtonBack);
         textSignup        = findViewById(R.id.text_signup);
-        buttonFindIdPw    = findViewById(R.id.button_find_idpw); // ★ 추가
+        buttonFindIdPw    = findViewById(R.id.button_find_idpw);
 
         // ----- 토큰/클라이언트 초기화 -----
         tm  = TokenManager.get(this);
@@ -82,7 +74,7 @@ public class LoginActivity extends AppCompatActivity {
         // 이 빌드의 앱 성격(서버 aud 매칭)
         clientType = DeviceInfo.getClientType(); // 예: "DRIVER_APP"
 
-        // ----- 자동 로그인 시도 -----
+        // ----- 자동 로그인 시도 (플래그 + refresh 둘 다 만족 시) -----
         tryAutoLoginIfPossible();
 
         // ----- UI 이벤트 -----
@@ -99,36 +91,48 @@ public class LoginActivity extends AppCompatActivity {
 
         // 로그인 요청
         buttonLogin.setOnClickListener(v -> doLogin());
+
+        // 백 버튼: 종료 확인 (onBackPressed 대체)
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override public void handleOnBackPressed() { confirmExit(); }
+        });
     }
 
     /** 저장된 refresh 토큰으로 자동 로그인 시도 */
     private void tryAutoLoginIfPossible() {
+        // 자동로그인 옵션이 켜져 있고 + refresh 토큰이 있어야만 시도
+        if (!tm.isAutoLogin()) return;
         String savedRefresh = tm.refreshToken();
-        if (savedRefresh == null) return; // 자동로그인 설정 아님
+        if (savedRefresh == null || savedRefresh.isEmpty()) return;
 
         setUi(false, "자동 로그인 중...");
 
-        api.refresh(savedRefresh, clientType, deviceId)
-                .enqueue(new Callback<ApiService.AuthResponse>() {
-                    @Override
-                    public void onResponse(Call<ApiService.AuthResponse> call, Response<ApiService.AuthResponse> res) {
-                        if (res.isSuccessful() && res.body() != null) {
-                            ApiService.AuthResponse a = res.body();
-                            tm.updateAccess(a.accessToken, a.tokenType);
-                            if (a.refreshToken != null) {
-                                tm.saveLogin(a.accessToken, a.refreshToken, a.tokenType, tm.role());
-                            }
-                            gotoMain();
-                        } else {
-                            tm.clear();
-                            setUi(true, "로그인");
-                        }
+        refreshCall = api.refresh(savedRefresh, clientType, deviceId);
+        refreshCall.enqueue(new Callback<ApiService.AuthResponse>() {
+            @Override
+            public void onResponse(Call<ApiService.AuthResponse> call, Response<ApiService.AuthResponse> res) {
+                if (res.isSuccessful() && res.body() != null) {
+                    ApiService.AuthResponse a = res.body();
+                    // access 갱신
+                    tm.updateAccess(a.accessToken, a.tokenType);
+
+                    // 서버가 refresh 재발급했다면 덮어쓰기
+                    if (a.refreshToken != null && !a.refreshToken.isEmpty()) {
+                        tm.saveRefreshOnly(a.refreshToken);
                     }
-                    @Override
-                    public void onFailure(Call<ApiService.AuthResponse> call, Throwable t) {
-                        setUi(true, "로그인");
-                    }
-                });
+                    gotoMain();
+                } else {
+                    // 실패: 자동로그인 해제 + refresh 제거
+                    tm.setAutoLogin(false);
+                    tm.clearRefresh();
+                    setUi(true, "로그인");
+                }
+            }
+            @Override
+            public void onFailure(Call<ApiService.AuthResponse> call, Throwable t) {
+                setUi(true, "로그인");
+            }
+        });
     }
 
     /** ID/PW 로그인 처리 */
@@ -144,17 +148,24 @@ public class LoginActivity extends AppCompatActivity {
         setUi(false, "로그인 중...");
 
         ApiService.AuthRequest body = new ApiService.AuthRequest(id, pw, clientType, deviceId);
-        api.login(body).enqueue(new Callback<ApiService.AuthResponse>() {
+        loginCall = api.login(body);
+        loginCall.enqueue(new Callback<ApiService.AuthResponse>() {
             @Override
             public void onResponse(Call<ApiService.AuthResponse> call, Response<ApiService.AuthResponse> res) {
                 if (res.isSuccessful() && res.body() != null) {
                     ApiService.AuthResponse a = res.body();
 
-                    // 토큰/역할 저장
-                    tm.saveLogin(a.accessToken, a.refreshToken, a.tokenType, a.role);
+                    boolean wantAuto = checkboxAutoLogin.isChecked();
+                    tm.setAutoLogin(wantAuto);
 
-                    // 자동로그인 체크 반영
-                    tm.setAutoLogin(checkboxAutoLogin.isChecked());
+                    if (wantAuto) {
+                        // 자동로그인 ON: access/refresh 모두 저장
+                        tm.saveLogin(a.accessToken, a.refreshToken, a.tokenType, a.role);
+                    } else {
+                        // 자동로그인 OFF: access만 저장, refresh는 즉시 제거
+                        tm.updateAccess(a.accessToken, a.tokenType);
+                        tm.clearRefresh();
+                    }
 
                     gotoMain();
                 } else {
@@ -200,12 +211,6 @@ public class LoginActivity extends AppCompatActivity {
                 .show();
     }
 
-    /** 하드웨어/소프트 백키도 종료 확인창 */
-    @Override
-    public void onBackPressed() {
-        confirmExit();
-    }
-
     /** 로그인 진행 중 UI 잠금/해제 및 버튼 텍스트 변경 */
     private void setUi(boolean enabled, String btnText) {
         editTextId.setEnabled(enabled);
@@ -214,7 +219,7 @@ public class LoginActivity extends AppCompatActivity {
         buttonLogin.setEnabled(enabled);
         loginButtonBack.setEnabled(enabled);
         textSignup.setEnabled(enabled);
-        if (buttonFindIdPw != null) buttonFindIdPw.setEnabled(enabled); // ★ 함께 잠그기
+        if (buttonFindIdPw != null) buttonFindIdPw.setEnabled(enabled);
         buttonLogin.setText(btnText);
     }
 
@@ -226,5 +231,12 @@ public class LoginActivity extends AppCompatActivity {
     // 짧은 토스트
     private void toast(String s) {
         Toast.makeText(this, s, Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (refreshCall != null) refreshCall.cancel();
+        if (loginCall != null) loginCall.cancel();
+        super.onDestroy();
     }
 }

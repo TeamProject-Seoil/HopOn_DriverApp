@@ -6,102 +6,171 @@ import android.os.Bundle;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.driver_bus_info.R;
+import com.example.driver_bus_info.core.TokenManager;
+import com.example.driver_bus_info.service.ApiClient;
+import com.example.driver_bus_info.service.ApiService;
+import com.example.driver_bus_info.util.DeviceInfo;
+
+import java.util.Map;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class UserQuitActivity extends AppCompatActivity {
 
     private Button buttonQuitSubmit;
     private ImageButton registerButtonBack;
     private Button buttonRegisterBack;
+    private EditText editPw;
+    private CheckBox checkAgree;
+
+    private TokenManager tm;
+    private ApiService api;
+    private String clientType;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.user_quit); // user_quit.xml 연결
+        setContentView(R.layout.user_quit);
 
-        // 버튼 연결
-        buttonQuitSubmit = findViewById(R.id.buttonQuitSubmit);
+        // 뷰 바인딩
+        buttonQuitSubmit   = findViewById(R.id.buttonQuitSubmit);
         registerButtonBack = findViewById(R.id.registerButtonBack);
         buttonRegisterBack = findViewById(R.id.buttonRegisterBack);
+        editPw             = findViewById(R.id.editTextPwConfirm);
+        checkAgree         = findViewById(R.id.checkAgree);
 
-        // 회원탈퇴 버튼 클릭 → 첫 번째 팝업 열기
-        buttonQuitSubmit.setOnClickListener(v -> showQuitPopup());
+        // Core
+        tm = TokenManager.get(this);
+        api = ApiClient.get(this);
+        clientType = DeviceInfo.getClientType();
 
-        // 뒤로가기 버튼 → 메인 화면으로 이동
+        // 체크박스 상태에 따라 탈퇴 버튼 활성화
+        setQuitEnabled(checkAgree.isChecked());
+        checkAgree.setOnCheckedChangeListener((buttonView, isChecked) -> setQuitEnabled(isChecked));
+
+        // 탈퇴 버튼
+        buttonQuitSubmit.setOnClickListener(v -> {
+            if (!checkAgree.isChecked()) { toast("탈퇴 안내를 모두 확인해 주세요."); return; }
+            String pw = safe(editPw.getText());
+            if (pw.isEmpty()) { toast("비밀번호를 입력해 주세요."); return; }
+            showQuitConfirmPopup(pw);
+        });
+
+        // 뒤로가기 → 메인
         if (registerButtonBack != null) {
-            registerButtonBack.setOnClickListener(v -> {
-                startActivity(new Intent(UserQuitActivity.this, MainActivity.class));
-                finish();
-            });
+            registerButtonBack.setOnClickListener(v -> goMain());
         }
-
-        // 또 다른 뒤로가기 버튼 → 메인 화면으로 이동
         if (buttonRegisterBack != null) {
-            buttonRegisterBack.setOnClickListener(v -> {
-                startActivity(new Intent(UserQuitActivity.this, MainActivity.class));
-                finish();
-            });
+            buttonRegisterBack.setOnClickListener(v -> goMain());
         }
     }
 
-    /** 첫 번째 팝업: 탈퇴 확인 */
-    private void showQuitPopup() {
+    private void setQuitEnabled(boolean enabled) {
+        buttonQuitSubmit.setEnabled(enabled);
+        buttonQuitSubmit.setAlpha(enabled ? 1f : 0.5f);
+    }
+
+    /** 탈퇴 확인 1단계 팝업 (확인 시 API 호출) */
+    private void showQuitConfirmPopup(String password) {
         Dialog dialog = new Dialog(UserQuitActivity.this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(R.layout.popup_user_quit);
 
-        // 팝업 크기 설정
         Window window = dialog.getWindow();
         if (window != null) {
             window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
             window.setBackgroundDrawableResource(android.R.color.transparent);
         }
 
-        // 버튼 연결
-        Button btnCancel = dialog.findViewById(R.id.cancel_button);
+        Button btnCancel  = dialog.findViewById(R.id.cancel_button);
         Button btnConfirm = dialog.findViewById(R.id.bthOk);
 
-        // 취소 버튼 → 팝업 닫기
         btnCancel.setOnClickListener(v -> dialog.dismiss());
-
-        // 확인 버튼 → 두 번째 팝업 열기
         btnConfirm.setOnClickListener(v -> {
-            dialog.dismiss();      // 첫 팝업 닫기
-            showQuitCompletePopup(); // 두 번째 팝업 열기
+            dialog.dismiss();
+            requestDeleteAccount(password);
         });
 
         dialog.show();
     }
 
-    /** 두 번째 팝업: 탈퇴 완료 → 로그인 화면 이동 */
+    /** 실제 회원 탈퇴 API 호출 */
+    private void requestDeleteAccount(String password) {
+        // 중복 클릭 방지
+        setQuitEnabled(false);
+
+        String bearer = (tm.tokenType() == null ? "Bearer" : tm.tokenType()) + " " + tm.accessToken();
+        ApiService.DeleteAccountRequest body = new ApiService.DeleteAccountRequest(password);
+
+        api.deleteMe(bearer, clientType, body).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> res) {
+                setQuitEnabled(true);
+
+                if (res.isSuccessful()) {
+                    try { tm.clear(); } catch (Exception ignore) {}
+                    showQuitCompletePopup();
+                } else if (res.code() == 400) {
+                    toast("비밀번호가 올바르지 않습니다.");
+                } else if (res.code() == 401) {
+                    toast("세션이 만료되었습니다. 다시 로그인해 주세요.");
+                    goLogin();
+                } else {
+                    toast("탈퇴 실패 (" + res.code() + ")");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                setQuitEnabled(true);
+                toast("네트워크 오류: " + t.getMessage());
+            }
+        });
+    }
+
+    /** 탈퇴 완료 2단계 팝업 → 로그인 화면으로 이동 */
     private void showQuitCompletePopup() {
         Dialog dialog = new Dialog(UserQuitActivity.this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(R.layout.popup_user_quit_com);
 
-        // 팝업 크기 설정
         Window window = dialog.getWindow();
         if (window != null) {
             window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
             window.setBackgroundDrawableResource(android.R.color.transparent);
         }
 
-        // 버튼 연결
         Button btnConfirm = dialog.findViewById(R.id.bthOk);
-
-        // 확인 버튼 → 로그인 화면으로 이동
         btnConfirm.setOnClickListener(v -> {
             dialog.dismiss();
-            Intent intent = new Intent(UserQuitActivity.this, LoginActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK); // 스택 초기화
-            startActivity(intent);
-            finish();
+            goLogin();
         });
 
         dialog.show();
     }
+
+    private void goMain() {
+        startActivity(new Intent(UserQuitActivity.this, MainActivity.class));
+        finish();
+    }
+
+    private void goLogin() {
+        Intent intent = new Intent(UserQuitActivity.this, LoginActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
+    private void toast(String s) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show(); }
+    private String safe(CharSequence cs) { return cs == null ? "" : cs.toString().trim(); }
 }
