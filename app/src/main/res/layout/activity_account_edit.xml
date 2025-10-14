@@ -63,6 +63,22 @@
                     android:enabled="false"/>
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- 현재 비밀번호 -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="현재 비밀번호"
+                app:endIconMode="password_toggle"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_marginTop="12dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/edit_password_current"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPassword"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
             <!-- 새 비밀번호 -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
@@ -79,16 +95,53 @@
                     android:inputType="textPassword"/>
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- ✅ 비밀번호 제약 조건 표시 -->
+            <!-- 가이드 한 줄 -->
             <TextView
                 android:id="@+id/password_rules"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="비밀번호는 10~16자, 영문/숫자 조합, 공백 불가"
+                android:text="비밀번호는 10~16자, 영문/숫자 조합, 공백/특수문자 불가"
                 android:textSize="12sp"
                 android:textColor="#888888"
                 android:layout_marginTop="4dp"
                 android:paddingStart="4dp"/>
+
+            <!-- ✅ 규칙 체크 3줄 (실시간 색/텍스트 변경) -->
+            <LinearLayout
+                android:id="@+id/pw_rule_box"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="6dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp">
+
+                <TextView
+                    android:id="@+id/tv_rule_len"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="• 길이 10~16자, 영문/숫자만"
+                    android:textSize="12sp"
+                    android:textColor="#B00020"/>
+
+                <TextView
+                    android:id="@+id/tv_rule_mix"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="• 영문(대/소)/숫자 중 2종류 이상"
+                    android:textSize="12sp"
+                    android:textColor="#B00020"
+                    android:layout_marginTop="2dp"/>
+
+                <TextView
+                    android:id="@+id/tv_rule_seq"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="• 연속/키보드 시퀀스 3자 금지 (예: abc, 123, qwe)"
+                    android:textSize="12sp"
+                    android:textColor="#B00020"
+                    android:layout_marginTop="2dp"/>
+            </LinearLayout>
 
             <!-- 새 비밀번호 확인 -->
             <com.google.android.material.textfield.TextInputLayout
@@ -148,7 +201,7 @@
                     android:textSize="16sp"
                     android:paddingHorizontal="4dp"/>
 
-                <!-- ✅ 도메인 선택/직접입력 전환 -->
+                <!-- 도메인 선택/직접입력 전환 -->
                 <FrameLayout
                     android:layout_width="160dp"
                     android:layout_height="wrap_content">
@@ -193,7 +246,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:gravity="end">   <!-- ✅ 오른쪽 정렬 -->
+                android:gravity="end">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_send_code"
@@ -206,7 +259,7 @@
                     style="@style/Widget.MaterialComponents.Button"/>
             </LinearLayout>
 
-            <!-- ✅ 인증 남은 시간 표시 -->
+            <!-- 인증 남은 시간 -->
             <TextView
                 android:id="@+id/text_timer"
                 android:layout_width="match_parent"
@@ -217,7 +270,7 @@
                 android:paddingStart="4dp"
                 android:layout_marginTop="4dp"/>
 
-            <!-- 인증 코드 입력 + 확인 버튼 -->
+            <!-- 인증 코드 입력 + 확인 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

@@ -16,9 +16,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Driver_bus_info"
-        tools:targetApi="31">
+        tools:targetApi="31"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config">
 
-        <!-- 시작 화면 -->
+        <!-- [런처 하나만 유지] 예: 스플래시만 런처로 -->
         <activity
             android:name=".activity.SplashActivity"
             android:exported="true">
@@ -32,7 +34,6 @@
             android:name=".activity.LoginActivity"
             android:exported="false" />
 
-        <!-- 메인 화면 -->
         <activity
             android:name=".activity.MainActivity"
             android:exported="false" />
@@ -48,6 +49,7 @@
         <activity
             android:name=".activity.RegisterPicExActivity"
             android:exported="false"/>
+
         <activity
             android:name=".activity.RegisterCheckActivity"
             android:exported="false"/>
@@ -76,11 +78,11 @@
             android:name=".activity.AccountEditActivity"
             android:exported="false" />
 
-        <activity android:name=".activity.FindAccountActivity"
-            android:exported="false"
-            />
+        <activity
+            android:name=".activity.FindAccountActivity"
+            android:exported="false" />
 
-        <!-- FileProvider 등록 -->
+        <!-- FileProvider -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -95,14 +97,9 @@
             android:name="com.naver.maps.map.NCP_KEY_ID"
             android:value="o5lcffxody"/>
 
+        <!-- (선택) 런처 제거 예시: 필요하면 유지하되 MAIN/LAUNCHER는 삭제 -->
         <activity
             android:name=".start.StartLoding"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:exported="true" />
     </application>
-
 </manifest>

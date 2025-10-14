@@ -4,7 +4,8 @@
     <!--  10.0.2.2  -->
     <!-- 실제 서버 도메인 (예시로 testhopon.p-e.kr 설정) -->
     <!--  testhopon.p-e.kr  -->
+    <!--  168.138.168.66  -->
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">168.138.168.66</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
     </domain-config>
 </network-security-config>

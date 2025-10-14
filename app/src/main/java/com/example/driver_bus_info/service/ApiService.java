@@ -157,6 +157,9 @@ public interface ApiService {
         public String company;
         public String approvalStatus;       // APPROVED | PENDING | REJECTED
         public boolean hasDriverLicenseFile; // 서버에서 '면허 존재 여부'로 매핑
+
+        // ✅ 서버에서 내려주는 값 수신
+        public String lastLoginAt;
     }
 
     class LogoutRequest {

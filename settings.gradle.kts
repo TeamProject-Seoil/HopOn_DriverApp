@@ -21,6 +21,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "driver_bus_info"
+rootProject.name = "HopOn_DriverApp"
 include(":app")
  
