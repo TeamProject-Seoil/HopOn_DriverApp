@@ -43,9 +43,10 @@ import retrofit2.Response;
  * 계정 정보 수정
  * - 이름/이메일/전화번호 수정 (/users/me PATCH multipart)
  * - 이메일 인증 발송/검증 (이메일 "변경"시에만 허용)
- * - 비밀번호 변경 (/users/me/password) — 현재 비밀번호 포함, 성공 시 세션 revoke → 로그아웃
+ * - 비밀번호 변경 (/users/me/password) — 성공 시 조용히 재로그인 후 메인으로 이동
  * - 스피너 도메인 ↔ 직접입력 전환
- * - 새 비밀번호 규칙 3가지 실시간 표시(입력 없음도 실패/빨강)
+ * - 새 비밀번호 규칙 3가지 + 비밀번호 일치 여부 실시간 표시
+ * - 전화번호 입력 시 자동 하이픈 포맷팅
  */
 public class AccountEditActivity extends AppCompatActivity {
 
@@ -59,8 +60,8 @@ public class AccountEditActivity extends AppCompatActivity {
     private EditText editPassword;          // 새 비밀번호
     private EditText editPasswordConfirm;   // 새 비밀번호 확인
 
-    // 규칙 3줄
-    private TextView tvRuleLen, tvRuleMix, tvRuleSeq;
+    // 규칙 3줄 + 일치/불일치
+    private TextView tvRuleLen, tvRuleMix, tvRuleSeq, tvPwMatch;
 
     private EditText editName;
 
@@ -113,7 +114,8 @@ public class AccountEditActivity extends AppCompatActivity {
         setupEmailDomainUi();
         wireButtons();
         wireEmailChangeWatchers(); // 이메일 변경 감지
-        wirePwRuleWatcher();       // 비번 규칙 실시간 반영
+        wirePwRuleWatcher();       // 비번 규칙 & 일치여부 실시간 반영
+        wirePhoneFormatter();      // 전화번호 자동 하이픈
 
         tm = TokenManager.get(this);
         api = ApiClient.get(this);
@@ -135,6 +137,7 @@ public class AccountEditActivity extends AppCompatActivity {
         tvRuleLen = findViewById(R.id.tv_rule_len);
         tvRuleMix = findViewById(R.id.tv_rule_mix);
         tvRuleSeq = findViewById(R.id.tv_rule_seq);
+        tvPwMatch = findViewById(R.id.tv_pw_match);
 
         editName = findViewById(R.id.edit_name);
 
@@ -162,6 +165,9 @@ public class AccountEditActivity extends AppCompatActivity {
         setRule(tvRuleLen, false);
         setRule(tvRuleMix, false);
         setRule(tvRuleSeq, false);
+
+        // 비밀번호 일치 초기 상태(표시 비움)
+        if (tvPwMatch != null) tvPwMatch.setText("");
     }
 
     private void setupEmailDomainUi() {
@@ -215,16 +221,22 @@ public class AccountEditActivity extends AppCompatActivity {
         editDomainCustom.addTextChangedListener(w);
     }
 
-    /** 새 비밀번호 입력 시 규칙 3줄 실시간 반영(빈값도 모두 실패/빨강) */
+    /** 새 비밀번호 입력 & 확인 입력 시: 규칙 3줄 + 일치/불일치 실시간 반영 */
     private void wirePwRuleWatcher() {
-        editPassword.addTextChangedListener(new TextWatcher() {
+        TextWatcher watcher = new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                updatePwRules(safe(s));
+                updatePwRules(safe(editPassword.getText()));
+                updatePwMatch(); // 일치여부
             }
             @Override public void afterTextChanged(Editable s) {}
-        });
+        };
+        editPassword.addTextChangedListener(watcher);
+        editPasswordConfirm.addTextChangedListener(watcher);
+
+        // 초기 반영
         updatePwRules(safe(editPassword.getText()));
+        updatePwMatch();
     }
 
     private void onEmailInputChanged() {
@@ -391,7 +403,9 @@ public class AccountEditActivity extends AppCompatActivity {
         }
 
         // (1) 프로필 먼저 업데이트
-        updateProfile(() -> {
+        updateProfile(changed -> {
+            if (changed) toast("회원정보가 수정되었습니다.");  // 프로필 변경 안내
+
             // (2) 프로필 성공 후, 비밀번호 변경이 요청되었다면 진행
             if (wantChangePw) {
                 changePassword(curPw, newPw);
@@ -426,7 +440,8 @@ public class AccountEditActivity extends AppCompatActivity {
         return true;
     }
 
-    private void updateProfile(Runnable onSuccess) {
+    /** 프로필 업데이트: 변경 성공 여부를 콜백으로 전달 */
+    private void updateProfile(ProfileCallback onDone) {
         boolean emailChanged = isEmailChanged();
         String email = emailChanged ? buildEmail() : null;
 
@@ -445,7 +460,7 @@ public class AccountEditActivity extends AppCompatActivity {
         }
 
         if (!profileChanged) {
-            onSuccess.run();
+            onDone.onDone(false);
             return;
         }
 
@@ -463,6 +478,7 @@ public class AccountEditActivity extends AppCompatActivity {
                     MediaType.parse("application/json; charset=utf-8")
             );
 
+            // ★ 인터페이스가 4개 인자를 요구 → 네 번째 인자로 파일 파트(null) 전달
             MultipartBody.Part filePart = null; // 이번 화면엔 프로필 이미지 업로드 없음
 
             String bearer = (tm.tokenType() == null ? "Bearer" : tm.tokenType()) + " " + tm.accessToken();
@@ -481,7 +497,7 @@ public class AccountEditActivity extends AppCompatActivity {
                                     textTimer.setText("남은 시간: -");
                                     setVerificationUiEnabled(false);
                                 }
-                                onSuccess.run();
+                                onDone.onDone(true);
                             } else if (res.code() == 409) {
                                 toast("이미 사용 중인 이메일입니다");
                             } else if (res.code() == 400) {
@@ -500,7 +516,7 @@ public class AccountEditActivity extends AppCompatActivity {
         }
     }
 
-    /** 비밀번호 변경: 성공 시 세션 revoke → 토큰 비움 & 로그인 화면으로 */
+    /** 비밀번호 변경: 성공 시 새 비번으로 조용히 재로그인 → 메인으로 */
     private void changePassword(String currentPw, String newPw) {
         String bearer = (tm.tokenType() == null ? "Bearer" : tm.tokenType()) + " " + tm.accessToken();
         ApiService.ChangePasswordRequest body = new ApiService.ChangePasswordRequest(currentPw, newPw);
@@ -508,13 +524,8 @@ public class AccountEditActivity extends AppCompatActivity {
         api.changePassword(bearer, clientType, body).enqueue(new Callback<okhttp3.ResponseBody>() {
             @Override public void onResponse(Call<okhttp3.ResponseBody> call, Response<okhttp3.ResponseBody> res) {
                 if (res.isSuccessful()) {
-                    toast("비밀번호가 변경되어 다시 로그인합니다.");
-                    // 서버에서 세션 revoke되므로 로컬 토큰도 정리하고 로그인으로
-                    try { tm.clear(); } catch (Exception ignore) {}
-                    Intent i = new Intent(AccountEditActivity.this, LoginActivity.class);
-                    i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(i);
-                    finish();
+                    // 기존 토큰은 서버에서 revoke 되었을 수 있으므로 새 비번으로 즉시 재로그인
+                    silentReloginWithNewPassword(newPw);
                 } else if (res.code() == 400) {
                     toast("현재 비밀번호가 올바르지 않거나 정책 위반입니다.");
                 } else {
@@ -525,6 +536,52 @@ public class AccountEditActivity extends AppCompatActivity {
                 toast("네트워크 오류: " + t.getMessage());
             }
         });
+    }
+
+    /** 새 비밀번호로 /auth/login 호출해서 토큰 갱신 후 메인 이동 */
+    private void silentReloginWithNewPassword(String newPw) {
+        String userid = safe(editId.getText());
+        String deviceId = tm.deviceId(); // TokenManager가 보관 중(없으면 DeviceInfo 등 사용)
+
+        ApiService.AuthRequest req = new ApiService.AuthRequest(
+                userid, newPw, clientType, deviceId
+        );
+
+        api.login(req).enqueue(new Callback<ApiService.AuthResponse>() {
+            @Override public void onResponse(Call<ApiService.AuthResponse> call, Response<ApiService.AuthResponse> res) {
+                if (res.isSuccessful() && res.body() != null) {
+                    ApiService.AuthResponse a = res.body();
+                    // 토큰 저장
+                    tm.saveLogin(a.accessToken, a.refreshToken,
+                            (a.tokenType == null ? "Bearer" : a.tokenType),
+                            a.role);
+                    toast("비밀번호가 변경되었습니다.");
+                    goMain();
+                } else {
+                    toast("비밀번호는 변경됐지만 세션 갱신에 실패했습니다. 다시 로그인해 주세요.");
+                    goLogin();
+                }
+            }
+
+            @Override public void onFailure(Call<ApiService.AuthResponse> call, Throwable t) {
+                toast("세션 갱신 실패: " + t.getMessage());
+                goLogin();
+            }
+        });
+    }
+
+    private void goMain() {
+        Intent i = new Intent(this, MainActivity.class);
+        i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(i);
+        finish();
+    }
+
+    private void goLogin() {
+        Intent i = new Intent(this, LoginActivity.class);
+        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(i);
+        finish();
     }
 
     // ── 팝업 ────────────────────────────────────────────────────────────────────
@@ -589,7 +646,7 @@ public class AccountEditActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
-    // ── 비밀번호 규칙(서버 PasswordPolicy와 맞춤) ──
+    // ── 비밀번호 규칙(서버 PasswordPolicy와 맞춤) + 일치여부 ──
 
     /** 입력이 비었으면 전부 실패(빨강)로 표시 */
     private void updatePwRules(String pw) {
@@ -618,6 +675,24 @@ public class AccountEditActivity extends AppCompatActivity {
         // 3) 연속/키보드 시퀀스 금지
         boolean badSeq = hasSequentialAlphaOrDigit(pw) || hasKeyboardSequence(pw);
         setRule(tvRuleSeq, !badSeq);
+    }
+
+    private void updatePwMatch() {
+        if (tvPwMatch == null) return;
+        String a = safe(editPassword.getText());
+        String b = safe(editPasswordConfirm.getText());
+
+        if (TextUtils.isEmpty(a) && TextUtils.isEmpty(b)) {
+            tvPwMatch.setText("");
+            return;
+        }
+        if (!TextUtils.isEmpty(b) && a.equals(b)) {
+            tvPwMatch.setText("일치합니다");
+            tvPwMatch.setTextColor(COLOR_OK);
+        } else {
+            tvPwMatch.setText("일치하지 않습니다");
+            tvPwMatch.setTextColor(COLOR_FAIL);
+        }
     }
 
     private void setRule(TextView tv, boolean ok) {
@@ -666,5 +741,51 @@ public class AccountEditActivity extends AppCompatActivity {
             }
         }
         return false;
+    }
+
+    /** 전화번호 입력 시 자동 하이픈 추가 (010-1234-5678 형식) */
+    private void wirePhoneFormatter() {
+        editPhone.addTextChangedListener(new TextWatcher() {
+            private boolean isFormatting;
+
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(Editable s) {
+                if (isFormatting) return;
+                isFormatting = true;
+
+                String digits = s.toString().replaceAll("[^0-9]", "");
+                StringBuilder formatted = new StringBuilder();
+
+                if (digits.length() <= 3) {
+                    formatted.append(digits);
+                } else if (digits.length() <= 7) {
+                    formatted.append(digits, 0, 3)
+                            .append("-")
+                            .append(digits.substring(3));
+                } else if (digits.length() <= 11) {
+                    formatted.append(digits, 0, 3)
+                            .append("-")
+                            .append(digits, 3, 7)
+                            .append("-")
+                            .append(digits.substring(7));
+                } else {
+                    formatted.append(digits, 0, 3)
+                            .append("-")
+                            .append(digits, 3, 7)
+                            .append("-")
+                            .append(digits, 7, 11);
+                }
+
+                editPhone.setText(formatted.toString());
+                editPhone.setSelection(editPhone.getText().length());
+                isFormatting = false;
+            }
+        });
+    }
+
+    /** 프로필 업데이트 결과 콜백 */
+    private interface ProfileCallback {
+        void onDone(boolean changed);
     }
 }
