@@ -22,7 +22,7 @@
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/back"
+                android:contentDescription="뒤로가기"
                 android:src="@drawable/ic_back"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
@@ -95,22 +95,7 @@
                     android:inputType="textPassword"/>
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- 비밀번호 확인 -->
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="비밀번호 확인"
-                app:endIconMode="password_toggle"
-                android:layout_marginTop="12dp">
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/editTextPwConfirm"
-                    android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:inputType="textPassword"/>
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <!-- 비밀번호 제약조건 안내 -->
+            <!-- 🔻 비밀번호 제약조건: 비밀번호 바로 아래 -->
             <TextView
                 android:id="@+id/textPasswordHint"
                 android:layout_width="match_parent"
@@ -120,7 +105,7 @@
                 android:textColor="#666"
                 android:layout_marginTop="4dp"/>
 
-            <!-- 비밀번호 규칙 달성도 표시 (3가지) -->
+            <!-- 비밀번호 규칙 달성도 표시 -->
             <LinearLayout
                 android:id="@+id/pw_rules_container"
                 android:layout_width="match_parent"
@@ -155,7 +140,22 @@
                     android:textColor="#D32F2F" />
             </LinearLayout>
 
-            <!-- 비밀번호 일치 여부 -->
+            <!-- 비밀번호 확인: 규칙 아래로 이동 -->
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="비밀번호 확인"
+                app:endIconMode="password_toggle"
+                android:layout_marginTop="12dp">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editTextPwConfirm"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:inputType="textPassword"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- 🔻 비밀번호 일치 여부: 확인 바로 아래 -->
             <TextView
                 android:id="@+id/tvPwMatch"
                 android:layout_width="match_parent"
@@ -250,7 +250,7 @@
                             android:id="@+id/btn_back_to_spinner"
                             android:layout_width="40dp"
                             android:layout_height="wrap_content"
-                            android:contentDescription="@string/back_to_spinner"
+                            android:contentDescription="스피너로 돌아가기"
                             android:src="@android:drawable/ic_menu_close_clear_cancel"
                             android:background="?attr/selectableItemBackgroundBorderless"/>
                     </LinearLayout>

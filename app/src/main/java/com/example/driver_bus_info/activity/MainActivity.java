@@ -4,9 +4,13 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.Dialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -18,6 +22,8 @@ import com.example.driver_bus_info.service.ApiClient;
 import com.example.driver_bus_info.service.ApiService;
 import com.example.driver_bus_info.util.DeviceInfo;
 import com.example.driver_bus_info.util.JwtUtils;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -31,20 +37,19 @@ import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity {
 
-    private Button btnLogout;       // 로그아웃 버튼
-    private Button btnQuit;         // 회원 탈퇴 버튼
-    private Button driveStart;      // 운행 시작 버튼
-    private ImageButton ivLogMore;  // 운행 기록 더보기 버튼
-    private Button btnEditProfile;  // 회원 정보 수정 버튼
+    private Button btnLogout;
+    private Button btnQuit;
+    private Button driveStart;
+    private ImageButton ivLogMore;
+    private Button btnEditProfile;
 
-    // 사용자 정보 표시용 뷰
     private TextView tvHello, tvDriverName, tvCompany, tvLastLogin;
 
     private TokenManager tm;
     private ApiService api;
     private String clientType;
 
-    // 빠른 중복 탭 방지용
+    // 중복탭 방지용
     private static abstract class DebouncedClick implements View.OnClickListener {
         private static final long GAP = 600L;
         private long last = 0L;
@@ -77,7 +82,7 @@ public class MainActivity extends AppCompatActivity {
         // Core
         tm         = TokenManager.get(this);
         api        = ApiClient.get(this);
-        clientType = DeviceInfo.getClientType(); // "DRIVER_APP" 등
+        clientType = DeviceInfo.getClientType();
 
         // 비로그인 방어
         if (tm.accessToken() == null) {
@@ -85,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // 1) JWT에 들어있는 name/username/sub로 먼저 즉시 표시 (UX 부드럽게)
+        // JWT에서 이름 표시
         String nameFromJwt = JwtUtils.getClaim(tm.accessToken(), "name");
         if (nameFromJwt == null) nameFromJwt = JwtUtils.getClaim(tm.accessToken(), "username");
         if (nameFromJwt == null) nameFromJwt = JwtUtils.getClaim(tm.accessToken(), "sub");
@@ -94,40 +99,28 @@ public class MainActivity extends AppCompatActivity {
             if (tvHello != null) tvHello.setText("환영합니다.");
         }
 
-        // 2) 서버 /users/me로 정확히 보강
+        // 서버에서 최신 프로필 불러오기
         loadProfile();
 
-        // 네비게이션 & 액션
+        // 액션
         btnLogout.setOnClickListener(new DebouncedClick() {
             @Override public void onDebouncedClick(View v) {
                 try { tm.clear(); } catch (Exception ignore) {}
                 goLogin();
             }
         });
+        btnQuit.setOnClickListener(v ->
+                startActivity(new Intent(MainActivity.this, UserQuitActivity.class))
+        );
+        driveStart.setOnClickListener(v ->
+                startActivity(new Intent(MainActivity.this, BusListActivity.class))
+        );
+        ivLogMore.setOnClickListener(v ->
+                startActivity(new Intent(MainActivity.this, BusLogActivity.class))
+        );
 
-        btnQuit.setOnClickListener(new DebouncedClick() {
-            @Override public void onDebouncedClick(View v) {
-                startActivity(new Intent(MainActivity.this, UserQuitActivity.class));
-            }
-        });
-
-        driveStart.setOnClickListener(new DebouncedClick() {
-            @Override public void onDebouncedClick(View v) {
-                startActivity(new Intent(MainActivity.this, BusListActivity.class));
-            }
-        });
-
-        ivLogMore.setOnClickListener(new DebouncedClick() {
-            @Override public void onDebouncedClick(View v) {
-                startActivity(new Intent(MainActivity.this, BusLogActivity.class));
-            }
-        });
-
-        btnEditProfile.setOnClickListener(new DebouncedClick() {
-            @Override public void onDebouncedClick(View v) {
-                startActivity(new Intent(MainActivity.this, AccountEditActivity.class));
-            }
-        });
+        // 회원정보 수정 → 비번 인증 다이얼로그
+        btnEditProfile.setOnClickListener(v -> showVerifyPasswordDialog());
 
         // 백버튼: 종료 확인
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
@@ -135,7 +128,16 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    /** /users/me 호출 → 서버 lastLoginAt 우선 표시, 없거나 실패 시 JWT 근사치 */
+    // ✅ 메인 복귀 시 회사명, 이름, 이메일 등 최신 정보 다시 불러오기
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (tm != null && tm.accessToken() != null) {
+            loadProfile();
+        }
+    }
+
+    /** /users/me 호출 */
     private void loadProfile() {
         String bearer = (tm.tokenType() != null ? tm.tokenType() : "Bearer") + " " + tm.accessToken();
 
@@ -143,38 +145,30 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<ApiService.UserResponse> call, Response<ApiService.UserResponse> res) {
                 if (!res.isSuccessful() || res.body() == null) {
-                    if (res.code() == 401) { // 만료 등
-                        safeLogoutToLogin();
-                    } else {
-                        // 서버 실패 → JWT로 근사치 표시 시도
-                        setLastLoginFromJwtFallback();
-                    }
+                    if (res.code() == 401) { safeLogoutToLogin(); }
+                    else { setLastLoginFromJwtFallback(); }
                     return;
                 }
-
                 ApiService.UserResponse u = res.body();
 
+                // 이름
                 if (u.username != null && !u.username.isEmpty() && tvDriverName != null) {
                     tvDriverName.setText(u.username + " 기사님");
                 }
 
+                // ✅ 회사명 즉시 반영
                 if (tvCompany != null) {
                     tvCompany.setText("회사 : " + (u.company == null ? "-" : u.company));
                 }
 
-                // ★ 최근 접속: 서버 값 우선, 없으면 JWT
+                // 최근 로그인
                 if (tvLastLogin != null) {
                     String text = null;
-
                     if (u.lastLoginAt != null && !u.lastLoginAt.isEmpty()) {
                         String kst = formatToKST(u.lastLoginAt);
                         if (kst != null) text = "최근 접속 : " + kst;
                     }
-
-                    if (text == null) {
-                        text = buildLastLoginFromJwt();
-                    }
-
+                    if (text == null) text = buildLastLoginFromJwt();
                     if (text != null) {
                         tvLastLogin.setText(text);
                         tvLastLogin.setVisibility(View.VISIBLE);
@@ -184,17 +178,14 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
-            @Override
-            public void onFailure(Call<ApiService.UserResponse> call, Throwable t) {
-                // 네트워크 실패 → JWT로 근사치 표시 시도
+            @Override public void onFailure(Call<ApiService.UserResponse> call, Throwable t) {
                 setLastLoginFromJwtFallback();
             }
         });
     }
 
-    /** 서버 lastLoginAt(ISO8601: Z/오프셋/밀리초)을 KST로 변환 */
     private String formatToKST(String iso) {
-        String[] patterns = new String[] {
+        String[] patterns = {
                 "yyyy-MM-dd'T'HH:mm:ss'Z'",
                 "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
                 "yyyy-MM-dd'T'HH:mm:ssXXX",
@@ -213,15 +204,12 @@ public class MainActivity extends AppCompatActivity {
         return null;
     }
 
-    /** JWT의 auth_time(없으면 iat)로 근사치 “최근 접속” 문자열 생성 */
     private String buildLastLoginFromJwt() {
         String at = tm.accessToken();
         if (at == null) return null;
-
         Long sec = JwtUtils.getLongClaim(at, "auth_time");
         if (sec == null) sec = JwtUtils.getLongClaim(at, "iat");
         if (sec == null) return null;
-
         Date d = new Date(sec * 1000L);
         SimpleDateFormat out = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss", Locale.KOREA);
         out.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
@@ -260,7 +248,72 @@ public class MainActivity extends AppCompatActivity {
         finish();
     }
 
-    private void toast(String s) {
-        Toast.makeText(this, s, Toast.LENGTH_SHORT).show();
+    private void toast(String s) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show(); }
+
+    // ---------------- 중앙 모달 다이얼로그 ----------------
+
+    private void showVerifyPasswordDialog() {
+        final Dialog dialog = new Dialog(this, R.style.CenterDialog);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_verify_password_center);
+
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
+            window.setGravity(Gravity.CENTER);
+            window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            WindowManager.LayoutParams lp = window.getAttributes();
+            lp.dimAmount = 0.4f;
+            window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            window.setAttributes(lp);
+        }
+
+        TextInputLayout til = dialog.findViewById(R.id.til_password);
+        TextInputEditText et = dialog.findViewById(R.id.et_password);
+        View btnCancel = dialog.findViewById(R.id.btn_cancel);
+        View btnOk = dialog.findViewById(R.id.btn_ok);
+
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+
+        btnOk.setOnClickListener(v -> {
+            String pwd = et.getText() == null ? "" : et.getText().toString();
+            if (pwd.isEmpty()) { til.setError("비밀번호를 입력하세요"); return; }
+            til.setError(null);
+            btnOk.setEnabled(false);
+            btnCancel.setEnabled(false);
+
+            String userid = JwtUtils.getClaim(tm.accessToken(), "sub");
+            if (userid == null || userid.isEmpty()) {
+                toast("사용자 정보를 확인할 수 없습니다. 다시 로그인해 주세요.");
+                dialog.dismiss();
+                safeLogoutToLogin();
+                return;
+            }
+
+            ApiService.AuthRequest req = new ApiService.AuthRequest(userid, pwd, clientType, tm.deviceId());
+            api.login(req).enqueue(new Callback<ApiService.AuthResponse>() {
+                @Override public void onResponse(Call<ApiService.AuthResponse> call, Response<ApiService.AuthResponse> res) {
+                    if (res.isSuccessful() && res.body() != null) {
+                        dialog.dismiss();
+                        // 비밀번호 전달 후 AccountEditActivity 진입
+                        Intent i = new Intent(MainActivity.this, AccountEditActivity.class);
+                        i.putExtra("verified_pw", pwd);
+                        startActivity(i);
+                    } else {
+                        til.setError(res.code() == 401 ? "비밀번호가 올바르지 않습니다" : "인증 실패 (" + res.code() + ")");
+                        btnOk.setEnabled(true);
+                        btnCancel.setEnabled(true);
+                    }
+                }
+
+                @Override public void onFailure(Call<ApiService.AuthResponse> call, Throwable t) {
+                    til.setError("네트워크 오류: " + t.getMessage());
+                    btnOk.setEnabled(true);
+                    btnCancel.setEnabled(true);
+                }
+            });
+        });
+
+        dialog.show();
     }
 }

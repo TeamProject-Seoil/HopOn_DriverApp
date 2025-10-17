@@ -2,6 +2,7 @@ package com.example.driver_bus_info.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.util.Patterns;
@@ -9,7 +10,6 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
-import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
@@ -20,7 +20,24 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.driver_bus_info.R;
+import com.example.driver_bus_info.service.ApiClient;
+import com.example.driver_bus_info.service.ApiService;
+import com.example.driver_bus_info.util.DeviceInfo;
 import com.google.android.material.button.MaterialButton;
+
+import org.json.JSONObject;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class RegisterActivity extends AppCompatActivity {
 
@@ -34,7 +51,7 @@ public class RegisterActivity extends AppCompatActivity {
             editTextName, editTextCompany, editTextEmail, editTextPhone, codeInput;
     private TextView textEmailTimer;
 
-    // 비밀번호 규칙/일치 표시 (레이아웃의 ID와 일치: tvRuleLen/Mix/Seq, tvPwMatch)
+    // 비밀번호 규칙/일치 표시
     private TextView tvRuleLen, tvRuleMix, tvRuleSeq, tvPwMatch;
 
     private final String[] domains = new String[] {
@@ -46,10 +63,23 @@ public class RegisterActivity extends AppCompatActivity {
     private static final int COLOR_FAIL = 0xFFB00020; // 붉은색
     private static final int COLOR_WEAK = 0xFF666666; // 회색
 
+    // ===== API & 상태 =====
+    private ApiService api;
+    private String clientType;  // ex) DRIVER_APP
+    private String deviceId;    // ex) DeviceInfo.getOrCreateDeviceId(...)
+    private String verificationId;                   // 이메일 인증 요청 id
+    private final AtomicBoolean emailVerified = new AtomicBoolean(false);
+    private CountDownTimer emailTimer;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_register); // 레이아웃 파일명 확인
+        setContentView(R.layout.activity_register); // XML 파일명: activity_register.xml
+
+        // Api/환경
+        api = ApiClient.get(this);
+        clientType = DeviceInfo.getClientType();
+        deviceId   = DeviceInfo.getOrCreateDeviceId(this);
 
         bindViews();
         setupEmailSpinner();
@@ -92,11 +122,11 @@ public class RegisterActivity extends AppCompatActivity {
         btnVerifyCode = findViewById(R.id.btn_verify_code);
         btnCheckId    = findViewById(R.id.buttonCheckId);
 
-        // 규칙/일치 TextView (ID 일치)
-        tvRuleLen = findViewById(R.id.tvRuleLen);
-        tvRuleMix = findViewById(R.id.tvRuleMix);
-        tvRuleSeq = findViewById(R.id.tvRuleSeq);
-        tvPwMatch = findViewById(R.id.tvPwMatch);
+        // 비밀번호 규칙/일치 텍스트
+        tvRuleLen  = findViewById(R.id.tvRuleLen);
+        tvRuleMix  = findViewById(R.id.tvRuleMix);
+        tvRuleSeq  = findViewById(R.id.tvRuleSeq);
+        tvPwMatch  = findViewById(R.id.tvPwMatch);
 
         // 초기 규칙 상태
         setRule(tvRuleLen, false, "길이 10~16자");
@@ -108,9 +138,7 @@ public class RegisterActivity extends AppCompatActivity {
 
     private void setupEmailSpinner() {
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this,
-                android.R.layout.simple_spinner_dropdown_item,
-                domains
+                this, android.R.layout.simple_spinner_dropdown_item, domains
         );
         spinnerEmailDomain.setAdapter(adapter);
         spinnerEmailDomain.setSelection(0);
@@ -126,6 +154,8 @@ public class RegisterActivity extends AppCompatActivity {
                     customDomainWrapper.setVisibility(View.GONE);
                     spinnerEmailDomain.setVisibility(View.VISIBLE);
                 }
+                // 도메인(스피너) 변경 시에는 인증 해제
+                emailVerified.set(false);
                 updateSubmitEnabled();
             }
             @Override public void onNothingSelected(AdapterView<?> parent) { }
@@ -136,22 +166,21 @@ public class RegisterActivity extends AppCompatActivity {
             spinnerEmailDomain.setVisibility(View.VISIBLE);
             spinnerEmailDomain.setSelection(0);
             editTextDomainCustom.setText(null);
+            // 직접입력 → 스피너로 되돌릴 때도 인증 해제
+            emailVerified.set(false);
             updateSubmitEnabled();
         });
     }
 
     private void setupClicks() {
-        // 회원가입 버튼 → 다음 화면
+        // 회원가입
         btnSubmitRegister.setOnClickListener(v -> {
             if (!validateInputs()) return;
-
-            String fullEmail = composeEmail();
-            Toast.makeText(this, "Email: " + fullEmail, Toast.LENGTH_SHORT).show();
-
-            // TODO: 서버 전송 로직 연결
-            Intent intent = new Intent(RegisterActivity.this, RegisterComActivity.class);
-            startActivity(intent);
-            finish();
+            if (!emailVerified.get()) {
+                toast("이메일 인증을 완료해 주세요.");
+                return;
+            }
+            doRegister();
         });
 
         // 뒤로가기 → 로그인
@@ -160,13 +189,12 @@ public class RegisterActivity extends AppCompatActivity {
             finish();
         });
 
-        // (선택) 중복확인 / 코드 발송 / 코드 확인은 추후 API 연결
-        btnCheckId.setOnClickListener(v ->
-                Toast.makeText(this, "아이디 중복확인 API 연결 예정", Toast.LENGTH_SHORT).show());
-        btnSendCode.setOnClickListener(v ->
-                Toast.makeText(this, "인증 메일 발송 API 연결 예정", Toast.LENGTH_SHORT).show());
-        btnVerifyCode.setOnClickListener(v ->
-                Toast.makeText(this, "인증 코드 확인 API 연결 예정", Toast.LENGTH_SHORT).show());
+        // 아이디 / 이메일 중복 확인
+        btnCheckId.setOnClickListener(v -> doCheckDuplicate());
+
+        // 인증 메일 발송/검증
+        btnSendCode.setOnClickListener(v -> sendEmailCode());
+        btnVerifyCode.setOnClickListener(v -> verifyEmailCode());
     }
 
     private void handleSystemBack() {
@@ -190,7 +218,7 @@ public class RegisterActivity extends AppCompatActivity {
         return local + "@" + domain;
     }
 
-    /** 폼 유효성 (백엔드 정책과 동일하게 체크) — 드라이버앱 기준 회사명 필수 */
+    /** 폼 유효성 — 드라이버앱 기준 회사명 필수 */
     private boolean validateInputs() {
         String id      = safeText(editTextId).trim();
         String name    = safeText(editTextName).trim();
@@ -206,10 +234,267 @@ public class RegisterActivity extends AppCompatActivity {
         if (!isValidPassword(pw)) { toast("비밀번호 규칙을 확인하세요 (10~16자, 영문/숫자, 연속/키보드열 금지)"); return false; }
         if (!pw.equals(pwc))      { toast("비밀번호가 일치하지 않습니다"); return false; }
 
+        if (customDomainWrapper.getVisibility() == View.VISIBLE) {
+            String customDomain = safeText(editTextDomainCustom).trim();
+            if (customDomain.isEmpty()) { toast("도메인을 입력하세요"); return false; }
+            if (!customDomain.contains(".") || customDomain.startsWith(".") || customDomain.endsWith(".")) {
+                toast("도메인 형식을 확인하세요"); return false;
+            }
+        }
         String email = composeEmail();
         if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) { toast("이메일 형식을 확인하세요"); return false; }
+
         if (phone.isEmpty()) { toast("전화번호를 입력하세요"); return false; }
         return true;
+    }
+
+    // ── 중복 확인 (/auth/check) ───────────────────────────────────────────────
+    private void doCheckDuplicate() {
+        String userid = safeText(editTextId).trim();
+        if (userid.isEmpty()) {
+            toast("아이디를 입력하세요");
+            return;
+        }
+
+        // 이메일은 '있으면' 함께 검사, 아니면 userid만 검사
+        String emailCandidate = composeEmail();
+        String emailForCheck = Patterns.EMAIL_ADDRESS.matcher(emailCandidate).matches()
+                ? emailCandidate
+                : null; // null이면 Retrofit이 쿼리 파라미터를 생략함
+
+        btnCheckId.setEnabled(false);
+        api.checkDup(userid, emailForCheck).enqueue(new Callback<ApiService.CheckResponse>() {
+            @Override public void onResponse(Call<ApiService.CheckResponse> call, Response<ApiService.CheckResponse> res) {
+                btnCheckId.setEnabled(true);
+                if (!res.isSuccessful() || res.body() == null) {
+                    toast("중복확인 실패 (" + res.code() + ")");
+                    return;
+                }
+                ApiService.CheckResponse body = res.body();
+
+                // 결과 메시지 구성
+                if (body.useridTaken) {
+                    toast("이미 사용 중인 아이디입니다.");
+                    return;
+                }
+                // 이메일을 함께 보냈을 때만 이메일 결과도 보여줌
+                if (emailForCheck != null && body.emailTaken) {
+                    toast("아이디는 사용 가능하지만, 이메일은 이미 사용 중입니다.");
+                    return;
+                }
+
+                if (emailForCheck == null) {
+                    toast("사용 가능한 아이디입니다. (이메일은 입력 후 형식 확인 가능)");
+                } else {
+                    toast("사용 가능한 아이디/이메일입니다.");
+                }
+            }
+            @Override public void onFailure(Call<ApiService.CheckResponse> call, Throwable t) {
+                btnCheckId.setEnabled(true);
+                toast("네트워크 오류: " + t.getMessage());
+            }
+        });
+    }
+
+    // ── 이메일 인증 (REGISTER) ────────────────────────────────────────────────
+    private void sendEmailCode() {
+        String email = composeEmail();
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            toast("이메일 형식을 확인하세요");
+            return;
+        }
+        btnSendCode.setEnabled(false);
+        btnVerifyCode.setEnabled(false);
+        codeInput.setEnabled(false);
+
+        ApiService.SendEmailCodeRequest req = new ApiService.SendEmailCodeRequest(email, "REGISTER");
+        api.sendEmail(req).enqueue(new Callback<Map<String, Object>>() {
+            @Override public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> res) {
+                if (!res.isSuccessful() || res.body() == null) {
+                    toast("인증 메일 발송 실패 (" + res.code() + ")");
+                    resetEmailUi();
+                    return;
+                }
+                Object v = res.body().get("verificationId");
+                verificationId = (v == null) ? null : String.valueOf(v);
+                if (verificationId == null) {
+                    toast("인증 토큰 발급 실패");
+                    resetEmailUi();
+                    return;
+                }
+                emailVerified.set(false);
+                startEmailTimer(10 * 60);
+                codeInput.setText("");
+                codeInput.setEnabled(true);
+                btnVerifyCode.setEnabled(true);
+                toast("인증 메일을 보냈습니다.");
+            }
+            @Override public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                toast("네트워크 오류: " + t.getMessage());
+                resetEmailUi();
+            }
+        });
+    }
+
+    private void verifyEmailCode() {
+        if (verificationId == null) { toast("먼저 인증 메일을 발송하세요"); return; }
+        String email = composeEmail();
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) { toast("이메일 형식을 확인하세요"); return; }
+        String code = safeText(codeInput).trim();
+        if (TextUtils.isEmpty(code)) { toast("인증코드를 입력하세요"); return; }
+
+        btnVerifyCode.setEnabled(false);
+
+        ApiService.VerifyEmailCodeRequest req =
+                new ApiService.VerifyEmailCodeRequest(verificationId, email, "REGISTER", code);
+        api.verifyEmail(req).enqueue(new Callback<Map<String, Object>>() {
+            @Override public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> res) {
+                btnVerifyCode.setEnabled(true);
+                if (!res.isSuccessful() || res.body() == null) {
+                    toast("인증 실패 (" + res.code() + ")");
+                    return;
+                }
+                Object ok = res.body().get("ok");
+                if (ok instanceof Boolean && (Boolean) ok) {
+                    emailVerified.set(true);
+                    stopEmailTimer();
+                    textEmailTimer.setText("인증 완료");
+                    toast("이메일 인증 완료");
+                    updateSubmitEnabled();
+                } else {
+                    toast("인증 실패");
+                }
+            }
+            @Override public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                btnVerifyCode.setEnabled(true);
+                toast("네트워크 오류: " + t.getMessage());
+            }
+        });
+    }
+
+    private void startEmailTimer(int seconds) {
+        stopEmailTimer();
+        emailTimer = new CountDownTimer(seconds * 1000L, 1000L) {
+            @Override public void onTick(long ms) {
+                long s = ms / 1000;
+                textEmailTimer.setText(String.format(Locale.KOREA, "남은 시간: %02d:%02d", s/60, s%60));
+            }
+            @Override public void onFinish() {
+                textEmailTimer.setText("만료됨");
+                verificationId = null;
+                emailVerified.set(false);
+                btnVerifyCode.setEnabled(false);
+                updateSubmitEnabled();
+            }
+        };
+        emailTimer.start();
+    }
+
+    private void stopEmailTimer() {
+        if (emailTimer != null) { emailTimer.cancel(); emailTimer = null; }
+    }
+
+    private void resetEmailUi() {
+        stopEmailTimer();
+        textEmailTimer.setText("남은 시간: -");
+        verificationId = null;
+        emailVerified.set(false);
+        btnSendCode.setEnabled(true);
+        btnVerifyCode.setEnabled(false);
+        codeInput.setEnabled(false);
+        updateSubmitEnabled();
+    }
+
+    // ── 회원가입 (/auth/register) ─────────────────────────────────────────────
+    private void doRegister() {
+        // 마지막 유효성 한 번 더
+        if (!validateInputs()) return;
+        if (!emailVerified.get()) {
+            toast("이메일 인증을 완료해 주세요.");
+            return;
+        }
+
+        String userid  = safeText(editTextId).trim();
+        String pw      = safeText(editTextPw);
+        String name    = safeText(editTextName).trim();
+        String company = safeText(editTextCompany).trim();
+        String email   = composeEmail();
+        String phone   = safeText(editTextPhone).trim();
+
+        try {
+            JSONObject data = new JSONObject();
+            data.put("userid", userid);
+            data.put("password", pw);
+            data.put("username", name);
+            data.put("email", email);
+            data.put("tel", phone);
+            data.put("company", company);
+            data.put("role", "ROLE_DRIVER");
+            data.put("clientType", clientType);
+            data.put("deviceId", deviceId);
+            if (!TextUtils.isEmpty(verificationId)) {
+                data.put("emailVerificationId", verificationId);
+            }
+
+            RequestBody dataJson = RequestBody.create(
+                    data.toString().getBytes(StandardCharsets.UTF_8),
+                    MediaType.parse("application/json; charset=utf-8")
+            );
+
+            MultipartBody.Part profile = null;
+            MultipartBody.Part license = null;
+
+            setAllEnabled(false);
+            api.register(dataJson, profile, license).enqueue(new Callback<ApiService.RegisterResponse>() {
+                @Override public void onResponse(Call<ApiService.RegisterResponse> call,
+                                                 Response<ApiService.RegisterResponse> res) {
+                    setAllEnabled(true);
+                    if (!res.isSuccessful() || res.body() == null) {
+                        if (res.code() == 409) {
+                            toast("이미 사용 중인 아이디/이메일입니다.");
+                        } else if (res.code() == 400) {
+                            toast("가입 정보가 올바르지 않습니다.");
+                        } else {
+                            toast("회원가입 실패 (" + res.code() + ")");
+                        }
+                        return;
+                    }
+                    ApiService.RegisterResponse body = res.body();
+                    if (body.ok) {
+                        toast("회원가입이 완료되었습니다.");
+                        startActivity(new Intent(RegisterActivity.this, RegisterComActivity.class));
+                        finish();
+                    } else {
+                        String reason = TextUtils.isEmpty(body.reason) ? "실패" : body.reason;
+                        toast("회원가입 실패: " + reason);
+                    }
+                }
+                @Override public void onFailure(Call<ApiService.RegisterResponse> call, Throwable t) {
+                    setAllEnabled(true);
+                    toast("네트워크 오류: " + t.getMessage());
+                }
+            });
+
+        } catch (Exception e) {
+            toast("요청 생성 오류: " + e.getMessage());
+        }
+    }
+
+    private void setAllEnabled(boolean enabled) {
+        btnSubmitRegister.setEnabled(enabled && emailVerified.get());
+        btnCheckId.setEnabled(enabled && !safeText(editTextId).trim().isEmpty());
+        btnSendCode.setEnabled(enabled);
+        btnVerifyCode.setEnabled(enabled && verificationId != null);
+        editTextId.setEnabled(enabled);
+        editTextPw.setEnabled(enabled);
+        editTextPwConfirm.setEnabled(enabled);
+        editTextName.setEnabled(enabled);
+        editTextCompany.setEnabled(enabled);
+        editTextEmail.setEnabled(enabled);
+        editTextDomainCustom.setEnabled(enabled);
+        spinnerEmailDomain.setEnabled(enabled);
+        editTextPhone.setEnabled(enabled);
+        codeInput.setEnabled(enabled && verificationId != null);
     }
 
     // ── 비밀번호 규칙 + 일치 여부 실시간 반영 ──────────────────────────────────
@@ -234,11 +519,9 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
 
-        // 1) 길이/문자군: 10~16, 영문/숫자만
         boolean lenOk = pw.length() >= 10 && pw.length() <= 16 && pw.matches("^[A-Za-z0-9]+$");
         setRule(tvRuleLen, lenOk, "길이 10~16자");
 
-        // 2) 2가지 이상 조합(대/소/숫자)
         boolean hasUpper=false, hasLower=false, hasDigit=false;
         for (int i=0;i<pw.length();i++) {
             char c = pw.charAt(i);
@@ -249,7 +532,6 @@ public class RegisterActivity extends AppCompatActivity {
         int classes = (hasUpper?1:0)+(hasLower?1:0)+(hasDigit?1:0);
         setRule(tvRuleMix, classes >= 2, "영문 대/소문자/숫자 중 2종류 이상, 영문/숫자만 사용");
 
-        // 3) 연속/키보드 시퀀스 금지
         boolean badSeq = hasSequentialAlphaOrDigit(pw) || hasKeyboardSequence(pw);
         setRule(tvRuleSeq, !badSeq, "연속 문자/숫자·키보드 시퀀스 3자리 이상 금지");
     }
@@ -299,21 +581,18 @@ public class RegisterActivity extends AppCompatActivity {
     /** 한국 전화번호 포맷 */
     private String formatPhone(String d) {
         if (TextUtils.isEmpty(d)) return "";
-        // 대표번호 15xx/16xx/18xx-xxxx
         if (d.matches("^(15|16|18)\\d{6,8}$")) {
             if (d.length() >= 8) {
                 return d.substring(0,4) + "-" + d.substring(4, Math.min(8, d.length()));
             }
             return d;
         }
-        // 02-xxx-xxxx 또는 02-xxxx-xxxx
         if (d.startsWith("02")) {
             if (d.length() <= 2) return d;
             if (d.length() <= 5) return d.substring(0,2) + "-" + d.substring(2);
             if (d.length() <= 9)  return d.substring(0,2) + "-" + d.substring(2,5) + "-" + d.substring(5);
             return d.substring(0,2) + "-" + d.substring(2,6) + "-" + d.substring(6, Math.min(10, d.length()));
         }
-        // 휴대폰/일반지역: 3-3-4 또는 3-4-4
         if (d.length() <= 3) return d;
         if (d.length() <= 7)  return d.substring(0,3) + "-" + d.substring(3);
         if (d.length() <= 10) return d.substring(0,3) + "-" + d.substring(3,6) + "-" + d.substring(6);
@@ -325,8 +604,6 @@ public class RegisterActivity extends AppCompatActivity {
         if (TextUtils.isEmpty(s)) return false;
         int len = s.length();
         if (len < 10 || len > 16) return false;
-
-        // 영문/숫자만
         if (!s.matches("^[A-Za-z0-9]+$")) return false;
 
         boolean hasUpper=false, hasLower=false, hasDigit=false;
@@ -365,11 +642,7 @@ public class RegisterActivity extends AppCompatActivity {
         if (s == null || s.length() < 3) return false;
         String lower = s.toLowerCase();
         String[] rows = new String[]{
-                "qwertyuiop",
-                "asdfghjkl",
-                "zxcvbnm",
-                "1234567890",
-                "0987654321"
+                "qwertyuiop", "asdfghjkl", "zxcvbnm", "1234567890", "0987654321"
         };
         for (String row : rows) {
             for (int i=0; i<=row.length()-3; i++) {
@@ -387,17 +660,26 @@ public class RegisterActivity extends AppCompatActivity {
 
     // ── 폼 활성화 상태 갱신 (UX) ──────────────────────────────────────────────
     private void wireFormEnablers() {
-        SimpleTextWatcher enabler = new SimpleTextWatcher() {
+        // 일반 필드 → 인증 상태 유지
+        SimpleTextWatcher normalWatcher = new SimpleTextWatcher() {
             @Override public void afterTextChanged(Editable s) {
                 updateSubmitEnabled();
             }
         };
-        editTextId.addTextChangedListener(enabler);
-        editTextName.addTextChangedListener(enabler);
-        editTextCompany.addTextChangedListener(enabler);
-        editTextEmail.addTextChangedListener(enabler);
-        editTextDomainCustom.addTextChangedListener(enabler);
-        editTextPhone.addTextChangedListener(enabler);
+        editTextId.addTextChangedListener(normalWatcher);
+        editTextName.addTextChangedListener(normalWatcher);
+        editTextCompany.addTextChangedListener(normalWatcher);
+        editTextPhone.addTextChangedListener(normalWatcher);
+
+        // 이메일 관련 필드 → 인증 상태 해제
+        SimpleTextWatcher emailWatcher = new SimpleTextWatcher() {
+            @Override public void afterTextChanged(Editable s) {
+                emailVerified.set(false);
+                updateSubmitEnabled();
+            }
+        };
+        editTextEmail.addTextChangedListener(emailWatcher);
+        editTextDomainCustom.addTextChangedListener(emailWatcher);
     }
 
     private void updateSubmitEnabled() {
@@ -411,10 +693,23 @@ public class RegisterActivity extends AppCompatActivity {
         boolean baseOk = !id.isEmpty() && !name.isEmpty() && !company.isEmpty() && !phone.isEmpty();
         boolean pwOk   = isValidPassword(pw) && pw.equals(pwc);
 
-        String email = composeEmail();
-        boolean emailOk = !TextUtils.isEmpty(email) && Patterns.EMAIL_ADDRESS.matcher(email).matches();
+        boolean emailOk;
+        if (customDomainWrapper.getVisibility() == View.VISIBLE) {
+            String customDomain = safeText(editTextDomainCustom).trim();
+            emailOk = !TextUtils.isEmpty(safeText(editTextEmail).trim())
+                    && !customDomain.isEmpty()
+                    && customDomain.contains(".")
+                    && !customDomain.startsWith(".")
+                    && !customDomain.endsWith(".");
+        } else {
+            emailOk = !TextUtils.isEmpty(safeText(editTextEmail).trim());
+        }
 
-        btnSubmitRegister.setEnabled(baseOk && pwOk && emailOk);
+        // 회원가입 버튼은 이메일 인증까지 끝나야 활성화
+        btnSubmitRegister.setEnabled(baseOk && pwOk && emailOk && emailVerified.get());
+
+        // ✅ 아이디 중복확인은 아이디만 있으면 가능
+        btnCheckId.setEnabled(!id.isEmpty());
     }
 
     // ── 유틸 ───────────────────────────────────────────────────────────────────
@@ -422,6 +717,12 @@ public class RegisterActivity extends AppCompatActivity {
         return e.getText() == null ? "" : e.getText().toString();
     }
     private void toast(String msg) { Toast.makeText(this, msg, Toast.LENGTH_SHORT).show(); }
+
+    @Override
+    protected void onDestroy() {
+        stopEmailTimer();
+        super.onDestroy();
+    }
 
     private static class SimpleTextWatcher implements android.text.TextWatcher {
         @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
