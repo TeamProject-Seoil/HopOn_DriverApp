@@ -43,10 +43,6 @@
             android:exported="false" />
 
         <activity
-            android:name=".activity.RegisterPicActivity"
-            android:exported="false" />
-
-        <activity
             android:name=".activity.RegisterPicExActivity"
             android:exported="false"/>
 
