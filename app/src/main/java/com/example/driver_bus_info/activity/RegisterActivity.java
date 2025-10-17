@@ -27,6 +27,8 @@ import com.google.android.material.button.MaterialButton;
 
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Map;
@@ -74,7 +76,7 @@ public class RegisterActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_register); // XML 파일명: activity_register.xml
+        setContentView(R.layout.activity_register);
 
         // Api/환경
         api = ApiClient.get(this);
@@ -82,6 +84,17 @@ public class RegisterActivity extends AppCompatActivity {
         deviceId   = DeviceInfo.getOrCreateDeviceId(this);
 
         bindViews();
+
+        // ▼▼▼ 여기서 이름 자동 입력 (RegisterCheckActivity에서 전달된 값)
+        Intent fromCheckAtCreate = getIntent();
+        if (fromCheckAtCreate != null) {
+            String nameFromCheck = fromCheckAtCreate.getStringExtra(RegisterCheckActivity.EXTRA_NAME);
+            if (!TextUtils.isEmpty(nameFromCheck) && editTextName != null && TextUtils.isEmpty(editTextName.getText())) {
+                editTextName.setText(nameFromCheck);
+            }
+        }
+        // ▲▲▲ 끝
+
         setupEmailSpinner();
         setupClicks();
         handleSystemBack();
@@ -272,12 +285,10 @@ public class RegisterActivity extends AppCompatActivity {
                 }
                 ApiService.CheckResponse body = res.body();
 
-                // 결과 메시지 구성
                 if (body.useridTaken) {
                     toast("이미 사용 중인 아이디입니다.");
                     return;
                 }
-                // 이메일을 함께 보냈을 때만 이메일 결과도 보여줌
                 if (emailForCheck != null && body.emailTaken) {
                     toast("아이디는 사용 가능하지만, 이메일은 이미 사용 중입니다.");
                     return;
@@ -421,6 +432,24 @@ public class RegisterActivity extends AppCompatActivity {
         String email   = composeEmail();
         String phone   = safeText(editTextPhone).trim();
 
+        // RegisterCheckActivity에서 넘겨준 면허 정보/사진/생년월일/면허상 이름
+        Intent fromCheck = getIntent();
+        String licenseNumber      = fromCheck.getStringExtra(RegisterCheckActivity.EXTRA_LICENSE_NUMBER);
+        String acquiredDate       = fromCheck.getStringExtra(RegisterCheckActivity.EXTRA_ACQUIRED_DATE);
+        String licensePhotoUriStr = fromCheck.getStringExtra(RegisterCheckActivity.EXTRA_LICENSE_PHOTO_URI);
+        String licenseHolderName  = fromCheck.getStringExtra(RegisterCheckActivity.EXTRA_NAME);   // 면허증상 이름
+        String birthDate          = fromCheck.getStringExtra(RegisterCheckActivity.EXTRA_BIRTH);  // yyyy-MM-dd
+
+        // 필수 면허정보 체크(서버에서 에러 나기 전에 클라에서 1차 방어)
+        if (TextUtils.isEmpty(licenseNumber) || TextUtils.isEmpty(acquiredDate)) {
+            toast("면허 정보가 누락되었습니다. 다시 촬영/입력해 주세요.");
+            return;
+        }
+        if (TextUtils.isEmpty(licensePhotoUriStr)) {
+            toast("면허 사진이 누락되었습니다. 다시 촬영해 주세요.");
+            return;
+        }
+
         try {
             JSONObject data = new JSONObject();
             data.put("userid", userid);
@@ -429,20 +458,34 @@ public class RegisterActivity extends AppCompatActivity {
             data.put("email", email);
             data.put("tel", phone);
             data.put("company", company);
-            data.put("role", "ROLE_DRIVER");
             data.put("clientType", clientType);
             data.put("deviceId", deviceId);
+
+            // 이메일 인증 키 이름: verificationId (서버 규격)
             if (!TextUtils.isEmpty(verificationId)) {
-                data.put("emailVerificationId", verificationId);
+                data.put("verificationId", verificationId);
             }
+
+            // 드라이버 필수/확장 필드
+            data.put("licenseNumber", licenseNumber);
+            data.put("acquiredDate", acquiredDate); // yyyy-MM-dd
+            if (!TextUtils.isEmpty(birthDate))        data.put("birthDate",   birthDate);        // yyyy-MM-dd
+            if (!TextUtils.isEmpty(licenseHolderName)) data.put("licenseName", licenseHolderName);
 
             RequestBody dataJson = RequestBody.create(
                     data.toString().getBytes(StandardCharsets.UTF_8),
                     MediaType.parse("application/json; charset=utf-8")
             );
 
+            // 프로필은 선택사항 → 이번 플로우에선 null
             MultipartBody.Part profile = null;
-            MultipartBody.Part license = null;
+
+            // 면허 사진(필수) 멀티파트 생성
+            MultipartBody.Part license = uriToImagePart(
+                    "licensePhoto",
+                    licensePhotoUriStr,
+                    "license.jpg"
+            );
 
             setAllEnabled(false);
             api.register(dataJson, profile, license).enqueue(new Callback<ApiService.RegisterResponse>() {
@@ -451,9 +494,11 @@ public class RegisterActivity extends AppCompatActivity {
                     setAllEnabled(true);
                     if (!res.isSuccessful() || res.body() == null) {
                         if (res.code() == 409) {
-                            toast("이미 사용 중인 아이디/이메일입니다.");
+                            toast("이미 사용 중인 아이디/이메일/면허번호가 있습니다.");
                         } else if (res.code() == 400) {
                             toast("가입 정보가 올바르지 않습니다.");
+                        } else if (res.code() == 413) {
+                            toast("이미지가 너무 큽니다.");
                         } else {
                             toast("회원가입 실패 (" + res.code() + ")");
                         }
@@ -478,6 +523,39 @@ public class RegisterActivity extends AppCompatActivity {
         } catch (Exception e) {
             toast("요청 생성 오류: " + e.getMessage());
         }
+    }
+
+    /** content:// 또는 file:// URI → Multipart 이미지 파트 (하위 호환) */
+    private MultipartBody.Part uriToImagePart(String formName, String uriStr, String fallbackName) {
+        if (TextUtils.isEmpty(uriStr)) return null;
+        try {
+            android.net.Uri uri = android.net.Uri.parse(uriStr);
+            String mime = getContentResolver().getType(uri);
+            if (mime == null) mime = "image/*";
+
+            byte[] bytes;
+            try (InputStream is = getContentResolver().openInputStream(uri)) {
+                if (is == null) return null;
+                bytes = readAllBytesCompat(is);
+            }
+
+            RequestBody body = RequestBody.create(bytes, MediaType.parse(mime));
+            return MultipartBody.Part.createFormData(formName, fallbackName, body);
+        } catch (Exception e) {
+            toast("이미지 변환 실패: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /** InputStream → byte[] (API 21+ 호환) */
+    private static byte[] readAllBytesCompat(InputStream is) throws Exception {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        byte[] buf = new byte[16 * 1024];
+        int r;
+        while ((r = is.read(buf)) != -1) {
+            bos.write(buf, 0, r);
+        }
+        return bos.toByteArray();
     }
 
     private void setAllEnabled(boolean enabled) {
@@ -523,7 +601,7 @@ public class RegisterActivity extends AppCompatActivity {
         setRule(tvRuleLen, lenOk, "길이 10~16자");
 
         boolean hasUpper=false, hasLower=false, hasDigit=false;
-        for (int i=0;i<pw.length();i++) {
+        for (int i=0; i<pw.length(); i++) {
             char c = pw.charAt(i);
             if (c>='A'&&c<='Z') hasUpper=true;
             else if (c>='a'&&c<='z') hasLower=true;
@@ -607,7 +685,7 @@ public class RegisterActivity extends AppCompatActivity {
         if (!s.matches("^[A-Za-z0-9]+$")) return false;
 
         boolean hasUpper=false, hasLower=false, hasDigit=false;
-        for (int i=0;i<len;i++) {
+        for (int i=0; i<len; i++) {
             char c = s.charAt(i);
             if (c>='A'&&c<='Z') hasUpper=true;
             else if (c>='a'&&c<='z') hasLower=true;
@@ -708,7 +786,7 @@ public class RegisterActivity extends AppCompatActivity {
         // 회원가입 버튼은 이메일 인증까지 끝나야 활성화
         btnSubmitRegister.setEnabled(baseOk && pwOk && emailOk && emailVerified.get());
 
-        // ✅ 아이디 중복확인은 아이디만 있으면 가능
+        // 아이디 중복확인은 아이디만 있으면 가능
         btnCheckId.setEnabled(!id.isEmpty());
     }
 

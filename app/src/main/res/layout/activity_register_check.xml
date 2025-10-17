@@ -8,17 +8,13 @@
     android:background="#F6F6F6"
     android:padding="0dp">
 
-
     <!-- 상단 파란 헤더 -->
-
     <View
         android:id="@+id/top_bar"
         android:layout_width="match_parent"
-    android:layout_height="100dp"
-    android:background="#4B93FF"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toTopOf="parent" />
+        android:layout_height="100dp"
+        android:background="#4B93FF"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <ImageButton
         android:id="@+id/registerButtonBack"
@@ -41,142 +37,214 @@
         android:textColor="#FFFFFF"
         android:textSize="30sp"
         android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 내부 내용 -->
-
+    <!-- 타이틀 -->
     <TextView
         android:id="@+id/textView7"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="15dp"
-        android:text="자격증 정보가 맞으신가요?"
-        android:textSize="25sp"
-    android:textStyle="bold"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toBottomOf="@+id/top_bar" />
-
-    <ImageView
-        android:id="@+id/imageView2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="15dp"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="16dp"
+        android:text="면허 정보 확인 및 이미지"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        app:layout_constraintTop_toBottomOf="@+id/top_bar"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- 사진 미리보기 카드 -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardPhoto"
+        android:layout_width="0dp"
+        android:layout_height="220dp"
+        android:layout_margin="20dp"
+        app:cardCornerRadius="16dp"
+        app:cardUseCompatPadding="true"
+        app:cardElevation="4dp"
         app:layout_constraintTop_toBottomOf="@+id/textView7"
-        app:srcCompat="@drawable/license_ex" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-    <TextView
-        android:id="@+id/editTextId"
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/ivLicensePreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:contentDescription="면허 사진 미리보기"
+            android:src="@drawable/license_ex"/>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- 사진 액션 버튼: 왼쪽 다시촬영, 오른쪽 사진선택 -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnRetakeCamera"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="45dp"
-        android:background="@drawable/edittext_outline"
-        android:padding="12dp"
-        app:layout_constraintEnd_toEndOf="@+id/imageView2"
-        app:layout_constraintStart_toStartOf="@+id/imageView2"
-        app:layout_constraintTop_toBottomOf="@+id/imageView2" />
-
-    <TextView
-        android:id="@+id/textView9"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="성명"
-        app:layout_constraintBottom_toTopOf="@+id/editTextId"
-        app:layout_constraintStart_toStartOf="@+id/editTextId" />
-
-    <TextView
-        android:id="@+id/editTextBirth"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:background="@drawable/edittext_outline"
-        android:padding="12dp"
-        app:layout_constraintEnd_toEndOf="@+id/editTextId"
-        app:layout_constraintStart_toStartOf="@+id/editTextId"
-        app:layout_constraintTop_toBottomOf="@+id/editTextId" />
-
-    <TextView
-        android:id="@+id/textView11"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="생년월일"
-        app:layout_constraintBottom_toTopOf="@+id/editTextBirth"
-        app:layout_constraintStart_toStartOf="@+id/editTextBirth" />
-
-    <TextView
-        android:id="@+id/editTextlicenseCode"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:background="@drawable/edittext_outline"
-        android:padding="12dp"
-        app:layout_constraintEnd_toEndOf="@+id/editTextId"
-        app:layout_constraintStart_toStartOf="@+id/editTextId"
-        app:layout_constraintTop_toBottomOf="@+id/editTextBirth" />
-
-    <TextView
-        android:id="@+id/textView13"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="자격증번호"
-        app:layout_constraintBottom_toTopOf="@+id/editTextlicenseCode"
-        app:layout_constraintStart_toStartOf="@+id/editTextlicenseCode" />
-
-    <TextView
-        android:id="@+id/editTextlicenseDay"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:background="@drawable/edittext_outline"
-        android:padding="12dp"
-        app:layout_constraintEnd_toEndOf="@+id/editTextId"
-        app:layout_constraintStart_toStartOf="@+id/editTextId"
-        app:layout_constraintTop_toBottomOf="@+id/editTextlicenseCode" />
-
-    <TextView
-        android:id="@+id/textView15"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="자격취득일"
-        app:layout_constraintBottom_toTopOf="@+id/editTextlicenseDay"
-        app:layout_constraintStart_toStartOf="@+id/editTextlicenseDay" />
-
-
-    <!-- 아래 버튼 -->
+        android:layout_height="48dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="8dp"
+        android:text="다시 촬영"
+        android:textAllCaps="false"
+        android:backgroundTint="#D9D9D9"
+        android:textColor="#000000"
+        app:cornerRadius="12dp"
+        app:layout_constraintTop_toBottomOf="@+id/cardPhoto"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/btnPickImage" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/buttonRegisterSubmit"
+        android:id="@+id/btnPickImage"
         android:layout_width="0dp"
-        android:layout_height="60dp"
-        android:layout_marginStart="20dp"
-        android:layout_marginEnd="50dp"
-        android:layout_marginBottom="20dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="20dp"
+        android:text="사진 선택"
+        android:textAllCaps="false"
         android:backgroundTint="#4A92FD"
-        android:text="제출"
         android:textColor="#FFFFFF"
-        app:cornerRadius="8dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/buttonRegisterBack" />
+        app:cornerRadius="12dp"
+        app:layout_constraintTop_toBottomOf="@+id/cardPhoto"
+        app:layout_constraintStart_toEndOf="@+id/btnRetakeCamera"
+        app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- 입력 폼: 이름/생년월일/자격증번호/자격취득일 -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilName"
+        style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="16dp"
+        android:hint="성명"
+        app:boxBackgroundColor="#FFFFFFFF"
+        app:boxCornerRadiusTopStart="10dp"
+        app:boxCornerRadiusTopEnd="10dp"
+        app:boxCornerRadiusBottomStart="10dp"
+        app:boxCornerRadiusBottomEnd="10dp"
+        app:layout_constraintTop_toBottomOf="@+id/btnPickImage"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editTextName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPersonName"
+            android:maxLines="1"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilBirth"
+        style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="12dp"
+        android:hint="생년월일 (예: 1990-01-31)"
+        app:boxBackgroundColor="#FFFFFFFF"
+        app:boxCornerRadiusTopStart="10dp"
+        app:boxCornerRadiusTopEnd="10dp"
+        app:boxCornerRadiusBottomStart="10dp"
+        app:boxCornerRadiusBottomEnd="10dp"
+        app:layout_constraintTop_toBottomOf="@+id/tilName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editTextBirth"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="date"
+            android:maxLines="1"
+            tools:text="1990-01-31"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilLicenseCode"
+        style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="12dp"
+        android:hint="자격증번호"
+        app:boxBackgroundColor="#FFFFFFFF"
+        app:boxCornerRadiusTopStart="10dp"
+        app:boxCornerRadiusTopEnd="10dp"
+        app:boxCornerRadiusBottomStart="10dp"
+        app:boxCornerRadiusBottomEnd="10dp"
+        app:layout_constraintTop_toBottomOf="@+id/tilBirth"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editTextlicenseCode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:maxLines="1"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilLicenseDay"
+        style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="12dp"
+        android:hint="자격취득일 (yyyy-MM-dd)"
+        app:boxBackgroundColor="#FFFFFFFF"
+        app:boxCornerRadiusTopStart="10dp"
+        app:boxCornerRadiusTopEnd="10dp"
+        app:boxCornerRadiusBottomStart="10dp"
+        app:boxCornerRadiusBottomEnd="10dp"
+        app:layout_constraintTop_toBottomOf="@+id/tilLicenseCode"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editTextlicenseDay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="date"
+            android:maxLines="1"
+            tools:text="2022-08-15"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- 하단 버튼들 -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/buttonRegisterBack"
         android:layout_width="0dp"
-        android:layout_height="60dp"
-        android:layout_marginStart="50dp"
-        android:layout_marginEnd="20dp"
+        android:layout_height="56dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="10dp"
         android:layout_marginBottom="20dp"
         android:backgroundTint="#D9D9D9"
         android:text="뒤로"
         android:textColor="#000000"
-        app:cornerRadius="8dp"
+        android:textAllCaps="false"
+        app:cornerRadius="12dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/buttonRegisterSubmit"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/buttonRegisterSubmit" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/buttonRegisterSubmit"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="20dp"
+        android:backgroundTint="#4A92FD"
+        android:text="제출"
+        android:textColor="#FFFFFF"
+        android:textAllCaps="false"
+        app:cornerRadius="12dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/buttonRegisterBack"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

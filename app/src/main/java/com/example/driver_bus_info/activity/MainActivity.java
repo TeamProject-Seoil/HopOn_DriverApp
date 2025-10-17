@@ -25,7 +25,6 @@ import com.example.driver_bus_info.util.JwtUtils;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -49,7 +48,6 @@ public class MainActivity extends AppCompatActivity {
     private ApiService api;
     private String clientType;
 
-    // 중복탭 방지용
     private static abstract class DebouncedClick implements View.OnClickListener {
         private static final long GAP = 600L;
         private long last = 0L;
@@ -67,7 +65,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // 바인딩
         btnLogout      = findViewById(R.id.btnLogout);
         btnQuit        = findViewById(R.id.btnQuit);
         driveStart     = findViewById(R.id.drive_start);
@@ -79,56 +76,41 @@ public class MainActivity extends AppCompatActivity {
         tvCompany     = findViewById(R.id.tvCompany);
         tvLastLogin   = findViewById(R.id.tvLastLogin);
 
-        // Core
         tm         = TokenManager.get(this);
         api        = ApiClient.get(this);
         clientType = DeviceInfo.getClientType();
 
-        // 비로그인 방어
         if (tm.accessToken() == null) {
             goLogin();
             return;
         }
 
-        // JWT에서 이름 표시
         String nameFromJwt = JwtUtils.getClaim(tm.accessToken(), "name");
         if (nameFromJwt == null) nameFromJwt = JwtUtils.getClaim(tm.accessToken(), "username");
         if (nameFromJwt == null) nameFromJwt = JwtUtils.getClaim(tm.accessToken(), "sub");
-        if (nameFromJwt != null && tvDriverName != null) {
+        if (nameFromJwt != null) {
             tvDriverName.setText(nameFromJwt + " 기사님");
-            if (tvHello != null) tvHello.setText("환영합니다.");
+            tvHello.setText("환영합니다.");
         }
 
-        // 서버에서 최신 프로필 불러오기
         loadProfile();
 
-        // 액션
         btnLogout.setOnClickListener(new DebouncedClick() {
             @Override public void onDebouncedClick(View v) {
                 try { tm.clear(); } catch (Exception ignore) {}
                 goLogin();
             }
         });
-        btnQuit.setOnClickListener(v ->
-                startActivity(new Intent(MainActivity.this, UserQuitActivity.class))
-        );
-        driveStart.setOnClickListener(v ->
-                startActivity(new Intent(MainActivity.this, BusListActivity.class))
-        );
-        ivLogMore.setOnClickListener(v ->
-                startActivity(new Intent(MainActivity.this, BusLogActivity.class))
-        );
-
-        // 회원정보 수정 → 비번 인증 다이얼로그
+        btnQuit.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, UserQuitActivity.class)));
+        driveStart.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, BusListActivity.class)));
+        ivLogMore.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, BusLogActivity.class)));
         btnEditProfile.setOnClickListener(v -> showVerifyPasswordDialog());
 
-        // 백버튼: 종료 확인
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() { confirmExit(); }
         });
     }
 
-    // ✅ 메인 복귀 시 회사명, 이름, 이메일 등 최신 정보 다시 불러오기
     @Override
     protected void onResume() {
         super.onResume();
@@ -137,7 +119,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /** /users/me 호출 */
     private void loadProfile() {
         String bearer = (tm.tokenType() != null ? tm.tokenType() : "Bearer") + " " + tm.accessToken();
 
@@ -151,21 +132,16 @@ public class MainActivity extends AppCompatActivity {
                 }
                 ApiService.UserResponse u = res.body();
 
-                // 이름
-                if (u.username != null && !u.username.isEmpty() && tvDriverName != null) {
+                if (u.username != null && !u.username.isEmpty()) {
                     tvDriverName.setText(u.username + " 기사님");
                 }
+                tvCompany.setText("회사 : " + (u.company == null ? "-" : u.company));
 
-                // ✅ 회사명 즉시 반영
-                if (tvCompany != null) {
-                    tvCompany.setText("회사 : " + (u.company == null ? "-" : u.company));
-                }
-
-                // 최근 로그인
                 if (tvLastLogin != null) {
+                    String iso = pickMostRecentIso(u.lastLoginAtIso, u.lastRefreshAtIso);
                     String text = null;
-                    if (u.lastLoginAt != null && !u.lastLoginAt.isEmpty()) {
-                        String kst = formatToKST(u.lastLoginAt);
+                    if (iso != null) {
+                        String kst = formatToKST(iso);
                         if (kst != null) text = "최근 접속 : " + kst;
                     }
                     if (text == null) text = buildLastLoginFromJwt();
@@ -184,22 +160,57 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private String formatToKST(String iso) {
+    /** 둘 중 최신 ISO 문자열 고르기 */
+    private String pickMostRecentIso(String a, String b) {
+        Long ta = toEpochMillis(a);
+        Long tb = toEpochMillis(b);
+        if (ta == null && tb == null) return null;
+        if (tb == null || (ta != null && ta >= tb)) return a;
+        return b;
+    }
+
+    private Long toEpochMillis(String iso) {
+        if (iso == null || iso.isEmpty()) return null;
+        // 다양한 ISO 패턴 커버
         String[] patterns = {
-                "yyyy-MM-dd'T'HH:mm:ss'Z'",
-                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-                "yyyy-MM-dd'T'HH:mm:ssXXX",
-                "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
+                "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", "yyyy-MM-dd'T'HH:mm:ssXXX",
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss.SSS", "yyyy-MM-dd'T'HH:mm:ss",
+                "yyyy-MM-dd HH:mm:ss.SSS", "yyyy-MM-dd HH:mm:ss"
         };
         for (String p : patterns) {
             try {
-                SimpleDateFormat in = new SimpleDateFormat(p, Locale.US);
-                if (p.endsWith("'Z'")) in.setTimeZone(TimeZone.getTimeZone("UTC"));
-                Date date = in.parse(iso);
-                SimpleDateFormat out = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss", Locale.KOREA);
-                out.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
-                return out.format(date);
-            } catch (ParseException ignore) {}
+                java.text.SimpleDateFormat in = new java.text.SimpleDateFormat(p, java.util.Locale.US);
+                if (p.endsWith("'Z'")) in.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+                else if (!p.endsWith("XXX")) in.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+                Date d = in.parse(iso);
+                if (d != null) return d.getTime();
+            } catch (Exception ignore) {}
+        }
+        return null;
+    }
+
+    /** ISO를 KST 표시 문자열로 */
+    private String formatToKST(String iso) {
+        if (iso == null || iso.isEmpty()) return null;
+
+        java.text.SimpleDateFormat out = new java.text.SimpleDateFormat("yyyy.MM.dd HH:mm:ss", java.util.Locale.KOREA);
+        out.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+
+        String[] patterns = {
+                "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", "yyyy-MM-dd'T'HH:mm:ssXXX",
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss.SSS", "yyyy-MM-dd'T'HH:mm:ss",
+                "yyyy-MM-dd HH:mm:ss.SSS", "yyyy-MM-dd HH:mm:ss"
+        };
+        for (String p : patterns) {
+            try {
+                java.text.SimpleDateFormat in = new java.text.SimpleDateFormat(p, java.util.Locale.US);
+                if (p.endsWith("'Z'")) in.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+                else if (!p.endsWith("XXX")) in.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+                Date d = in.parse(iso);
+                if (d != null) return out.format(d);
+            } catch (Exception ignore) {}
         }
         return null;
     }
@@ -217,7 +228,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setLastLoginFromJwtFallback() {
-        if (tvLastLogin == null) return;
         String text = buildLastLoginFromJwt();
         if (text != null) {
             tvLastLogin.setText(text);
@@ -247,10 +257,6 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
         finish();
     }
-
-    private void toast(String s) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show(); }
-
-    // ---------------- 중앙 모달 다이얼로그 ----------------
 
     private void showVerifyPasswordDialog() {
         final Dialog dialog = new Dialog(this, R.style.CenterDialog);
@@ -284,7 +290,7 @@ public class MainActivity extends AppCompatActivity {
 
             String userid = JwtUtils.getClaim(tm.accessToken(), "sub");
             if (userid == null || userid.isEmpty()) {
-                toast("사용자 정보를 확인할 수 없습니다. 다시 로그인해 주세요.");
+                Toast.makeText(this, "사용자 정보를 확인할 수 없습니다. 다시 로그인해 주세요.", Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
                 safeLogoutToLogin();
                 return;
@@ -295,7 +301,6 @@ public class MainActivity extends AppCompatActivity {
                 @Override public void onResponse(Call<ApiService.AuthResponse> call, Response<ApiService.AuthResponse> res) {
                     if (res.isSuccessful() && res.body() != null) {
                         dialog.dismiss();
-                        // 비밀번호 전달 후 AccountEditActivity 진입
                         Intent i = new Intent(MainActivity.this, AccountEditActivity.class);
                         i.putExtra("verified_pw", pwd);
                         startActivity(i);
@@ -305,7 +310,6 @@ public class MainActivity extends AppCompatActivity {
                         btnCancel.setEnabled(true);
                     }
                 }
-
                 @Override public void onFailure(Call<ApiService.AuthResponse> call, Throwable t) {
                     til.setError("네트워크 오류: " + t.getMessage());
                     btnOk.setEnabled(true);
