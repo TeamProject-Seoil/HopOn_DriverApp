@@ -461,7 +461,9 @@ public class FindAccountActivity extends AppCompatActivity {
 
         EditText etNewPw = pwResetView.findViewById(R.id.et_new_pw);
         EditText etConfirmPw = pwResetView.findViewById(R.id.et_confirm_pw);
-        TextView tvMismatch = pwResetView.findViewById(R.id.tv_pw_mismatch);
+
+        // 기존 id(tv_pw_mismatch)를 그대로 사용하되, '일치/불일치' 모두 표시하는 라벨로 씀
+        TextView tvPwMatch = pwResetView.findViewById(R.id.tv_pw_mismatch);
 
         TextView tvRuleLen = pwResetView.findViewById(R.id.tv_pw_rule_length);
         TextView tvRuleMix = pwResetView.findViewById(R.id.tv_pw_rule_mix);
@@ -471,8 +473,13 @@ public class FindAccountActivity extends AppCompatActivity {
         Button btnConfirm = pwResetView.findViewById(R.id.btn_confirm_pw);
         btnConfirm.setEnabled(false);
 
-        final int RED = ContextCompat.getColor(this, android.R.color.holo_red_dark);
-        final int GREEN = ContextCompat.getColor(this, android.R.color.holo_green_dark);
+        final int RED  = ContextCompat.getColor(this, android.R.color.holo_red_dark);
+        final int GREEN= ContextCompat.getColor(this, android.R.color.holo_green_dark);
+        final int GRAY = ContextCompat.getColor(this, android.R.color.darker_gray);
+
+        // 초기 안내문구
+        tvPwMatch.setTextColor(GRAY);
+        tvPwMatch.setVisibility(View.VISIBLE);
 
         TextWatcher watcher = new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
@@ -492,7 +499,18 @@ public class FindAccountActivity extends AppCompatActivity {
                 boolean allPolicyOk = lenOk && mixOk && seqOk;
                 boolean match = !confirm.isEmpty() && pw.equals(confirm);
 
-                tvMismatch.setVisibility(match ? View.GONE : View.VISIBLE);
+                // ▼ 여기서 항상 라벨을 보여주고 상태에 따라 문구/색 변경
+                if (pw.isEmpty() && confirm.isEmpty()) {
+                    tvPwMatch.setText("비밀번호 일치 여부");
+                    tvPwMatch.setTextColor(GRAY);
+                } else if (match) {
+                    tvPwMatch.setText("✓ 비밀번호가 일치합니다");
+                    tvPwMatch.setTextColor(GREEN);
+                } else {
+                    tvPwMatch.setText("✗ 비밀번호가 일치하지 않습니다");
+                    tvPwMatch.setTextColor(RED);
+                }
+
                 btnConfirm.setEnabled(allPolicyOk && match);
             }
         };
@@ -513,7 +531,8 @@ public class FindAccountActivity extends AppCompatActivity {
                 return;
             }
             if (!newPw.equals(confirmPw)) {
-                tvMismatch.setVisibility(View.VISIBLE);
+                // watcher가 이미 불일치 문구를 보여주므로 여기서는 안내만
+                toast("비밀번호가 일치하지 않습니다");
                 return;
             }
             if (userId.isEmpty() || currentEmail == null || verificationId == null) {
@@ -538,22 +557,18 @@ public class FindAccountActivity extends AppCompatActivity {
                         if (tvMsg != null) {
                             String displayName = (lastFoundName != null && !lastFoundName.isBlank())
                                     ? lastFoundName : (lastFoundUserId != null ? lastFoundUserId : "");
-                            if (!displayName.isEmpty()) {
-                                tvMsg.setText(displayName + "님의 비밀번호가 변경되었습니다");
-                            } else {
-                                tvMsg.setText("비밀번호가 변경되었습니다");
-                            }
+                            tvMsg.setText(displayName.isEmpty()
+                                    ? "비밀번호가 변경되었습니다"
+                                    : displayName + "님의 비밀번호가 변경되었습니다");
                         }
 
                         AlertDialog dialog = builder.create();
                         dialog.setCancelable(false);
-
                         dialogView.findViewById(R.id.btn_go_login).setOnClickListener(view -> {
                             startActivity(new Intent(FindAccountActivity.this, LoginActivity.class));
                             finish();
                             dialog.dismiss();
                         });
-
                         dialog.show();
                     } else {
                         toast("비밀번호 변경 실패");
@@ -565,6 +580,7 @@ public class FindAccountActivity extends AppCompatActivity {
 
         frameContent.addView(pwResetView);
     }
+
 
     private void startTimer(TextView textTimer, int seconds) {
         if (timer != null) timer.cancel();
