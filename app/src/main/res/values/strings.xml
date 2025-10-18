@@ -1,3 +1,5 @@
 <resources>
-    <string name="app_name">HopOn\nDriver</string>
+    <string name="app_name">driver_bus_info</string>
+    <string name="back">뒤로가기</string>
+    <string name="back_to_spinner">뒤로</string>
 </resources>
