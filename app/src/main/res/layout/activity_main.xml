@@ -4,327 +4,261 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#F4F6F8"
+    tools:context=".activity.MainActivity">
 
-    <!-- 상단 타이틀 -->
+    <!-- 상단 로고 -->
     <TextView
         android:id="@+id/tvAppName"
-        android:layout_width="0dp"
-        android:layout_height="130dp"
-        android:text="Hop On"
-        android:textSize="50sp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="HOP ON"
+        android:textColor="#4B93FF"
+        android:textSize="38sp"
         android:textStyle="bold"
-        android:textColor="#3B82F6"
-        android:padding="16dp"
         android:gravity="center"
+        android:layout_marginTop="32dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- 파란 패널: 왼쪽 위만 라운드, 좌우/아래 여백 없음 -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/panel"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:background="@drawable/driver_panel_bg"
+    <!-- 환영 문구 -->
+    <TextView
+        android:id="@+id/tvHello"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="환영합니다."
+        android:textColor="#666666"
+        android:textSize="15sp"
+        android:layout_marginTop="6dp"
         app:layout_constraintTop_toBottomOf="@id/tvAppName"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- 기사 정보 카드 -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardDriverInfo"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginTop="40dp"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="5dp"
+        app:cardBackgroundColor="@android:color/white"
+        app:layout_constraintTop_toBottomOf="@id/tvHello"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- 내부 패딩만 적용 -->
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/panelContent"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:paddingStart="16dp"
-            android:paddingTop="12dp"
-            android:paddingEnd="16dp"
-            android:paddingBottom="16dp"
-            tools:layout_editor_absoluteX="0dp"
-            tools:layout_editor_absoluteY="0dp">
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:orientation="vertical">
 
-            <!-- 우측 액션: 회원정보수정 아래 로그아웃 -->
-
-            <!-- 왼쪽 정보 영역 -->
-            <TextView
-                android:id="@+id/tvHello"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="환영합니다."
-                android:textColor="#111111"
-                android:textSize="14sp"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/tvDriverName"
-                android:layout_width="wrap_content"
+                <ImageView
+                    android:id="@+id/imgDriverProfile"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_bus" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="12dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvDriverName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="김민재 기사님"
+                        android:textColor="#111111"
+                        android:textStyle="bold"
+                        android:textSize="17sp" />
+
+                    <TextView
+                        android:id="@+id/tvCompany"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="(주)남성버스"
+                        android:textColor="#555555"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/tvLastLogin"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="마지막 접속 2025.07.17 15:39"
+                        android:textColor="#9AA1A9"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/btnEditProfile"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:src="@drawable/edit"
+                    android:background="@android:color/transparent"
+                    app:tint="#4B93FF" />
+            </LinearLayout>
+
+            <!-- 로그아웃/회원탈퇴 버튼 -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingTop="2dp"
-                android:text="김민재 기사님"
-                android:textColor="#111111"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="@+id/tvHello"
-                app:layout_constraintTop_toBottomOf="@+id/tvHello" />
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal"
+                android:gravity="end">
 
-            <TextView
-                android:id="@+id/tvCompany"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingTop="6dp"
-                android:text="회사 : (주)남성버스"
-                android:textColor="#374151"
-                android:textSize="12sp"
-                app:layout_constraintStart_toStartOf="@+id/tvHello"
-                app:layout_constraintTop_toBottomOf="@+id/tvDriverName" />
+                <Button
+                    android:id="@+id/btnLogout"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="로그아웃"
+                    android:textColor="#4B93FF"
+                    android:textSize="12sp"
+                    android:background="@android:color/transparent"/>
 
-            <TextView
-                android:id="@+id/tvLastLogin"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingTop="2dp"
-                android:text="최근 접속 : 2025.07.17 15:39:01"
-                android:textColor="#374151"
-                android:textSize="12sp"
-                app:layout_constraintStart_toStartOf="@+id/tvHello"
-                app:layout_constraintTop_toBottomOf="@+id/tvCompany" />
+                <Button
+                    android:id="@+id/btnQuit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="회원탈퇴"
+                    android:textColor="#E74C3C"
+                    android:textSize="12sp"
+                    android:layout_marginStart="12dp"
+                    android:background="@android:color/transparent"/>
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
-            <!-- 오른쪽 버튼 영역 -->
-            <Button
-                android:id="@+id/btnEditProfile"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:clickable="true"
-                android:focusable="true"
-                android:minHeight="0dp"
-                android:padding="8dp"
-                android:text="회원 정보 수정"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+    <!-- 운행 시작 카드 -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardDriveStart"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginTop="40dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="5dp"
+        app:cardBackgroundColor="#4B93FF"
+        app:layout_constraintTop_toBottomOf="@id/cardDriverInfo"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-            <Button
-                android:id="@+id/btnLogout"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:clickable="true"
-                android:focusable="true"
-                android:minHeight="0dp"
-                android:padding="8dp"
-                android:text="로그아웃"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/btnEditProfile" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="20dp">
 
-            <Button
-                android:id="@+id/btnQuit"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:clickable="true"
-                android:focusable="true"
-                android:minHeight="0dp"
-                android:padding="8dp"
-                android:text="회원 탈퇴"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/btnLogout" />
+            <com.airbnb.lottie.LottieAnimationView
+                android:id="@+id/busicon"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                app:lottie_autoPlay="true"
+                app:lottie_loop="true"
+                app:lottie_rawRes="@raw/bus_motion"/>
 
-
-            <!-- 최근 접속 아래 경계선 (가이드라인) -->
-
-            <!-- 버스 운행 카드 -->
 
             <Button
                 android:id="@+id/drive_start"
-                android:layout_width="0dp"
-                android:layout_height="160dp"
-                android:layout_marginTop="20dp"
-
-                android:background="@drawable/dialog_background"
-                app:backgroundTint="@null"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="0.0"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tvLastLogin" />
-
-            <ImageView
-                android:id="@+id/busicon"
-                android:layout_width="53dp"
-                android:layout_height="58dp"
-                app:layout_constraintBottom_toBottomOf="@+id/drive_start"
-                app:layout_constraintEnd_toEndOf="@+id/drive_start"
-                app:layout_constraintStart_toStartOf="@+id/drive_start"
-                app:layout_constraintTop_toTopOf="@+id/drive_start"
-                app:srcCompat="@drawable/vector"
-                app:tint="#4B93FF" />
-
-            <!-- 운행 버스 기록 카드 -->
-            <View
-                android:id="@+id/cardLog"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_marginTop="4dp"
-                android:background="@drawable/dialog_background"
-                android:minHeight="280dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/drive_start" />
-
-            <!-- 카드 내용 -->
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:padding="18dp"
-                app:layout_constraintEnd_toEndOf="@id/cardLog"
-                app:layout_constraintStart_toStartOf="@id/cardLog"
-                app:layout_constraintTop_toBottomOf="@+id/drive_start">
+                android:layout_marginTop="10dp"
+                android:backgroundTint="@android:color/white"
+                android:text="운행 시작"
+                android:textColor="#4B93FF"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
-                <!-- 제목 -->
+    <!-- 운행 기록 카드 -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardLog"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginTop="40dp"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="4dp"
+        app:cardBackgroundColor="@android:color/white"
+        app:layout_constraintTop_toBottomOf="@id/cardDriveStart"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
                 <TextView
                     android:id="@+id/tvLogTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="운행 버스 기록"
-                    android:textColor="#111111"
-                    android:textSize="15sp"
+                    android:text="최근 운행 기록"
                     android:textStyle="bold"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    android:textSize="15sp"
+                    android:textColor="#111111"
+                    android:layout_weight="1" />
 
-                <!-- 우측 상단 화살표 -->
                 <ImageButton
                     android:id="@+id/ivLogMore"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:background="@android:color/transparent"
                     android:src="@drawable/expand"
-                    app:layout_constraintBottom_toBottomOf="@id/tvLogTitle"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="@id/tvLogTitle" />
+                    app:tint="#4B93FF" />
+            </LinearLayout>
 
-                <!-- 제목 아래 구분선 -->
-                <View
-                    android:id="@+id/dividerLogHead"
-                    android:layout_width="0dp"
-                    android:layout_height="1dp"
-                    android:layout_marginTop="10dp"
-                    android:background="#E6E8EC"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tvLogTitle" />
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="8dp"
+                android:background="#E0E0E0" />
 
-                <!-- 헤더: 출발 시간 -->
-                <TextView
-                    android:id="@+id/tvStartTimeHeader"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="출발 시간"
-                    android:textColor="#9AA1A9"
-                    android:textSize="12sp"
-                    app:layout_constraintEnd_toStartOf="@id/tvBusHeader"
-                    app:layout_constraintHorizontal_chainStyle="spread"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/dividerLogHead" />
-
-                <!-- 헤더: 버스 -->
-                <TextView
-                    android:id="@+id/tvBusHeader"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="버스"
-                    android:textColor="#9AA1A9"
-                    android:textSize="12sp"
-                    app:layout_constraintEnd_toStartOf="@id/tvEndTimeHeader"
-                    app:layout_constraintStart_toEndOf="@id/tvStartTimeHeader"
-                    app:layout_constraintTop_toBottomOf="@id/dividerLogHead" />
-
-                <!-- 헤더: 도착 시간 -->
-                <TextView
-                    android:id="@+id/tvEndTimeHeader"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="도착 시간"
-                    android:textColor="#9AA1A9"
-                    android:textSize="12sp"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/tvBusHeader"
-                    app:layout_constraintTop_toBottomOf="@id/dividerLogHead" />
-
-                <!-- 헤더 아래 구분선 -->
-                <View
-                    android:id="@+id/dividerLogCols"
-                    android:layout_width="0dp"
-                    android:layout_height="1dp"
-                    android:layout_marginTop="6dp"
-                    android:background="#E6E8EC"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tvStartTimeHeader" />
-
-                <!-- 데이터 1행 (예시) -->
-                <TextView
-                    android:id="@+id/tvRow1StartTime"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="08:30"
-                    android:textColor="#000000"
-                    android:textSize="12sp"
-                    app:layout_constraintEnd_toStartOf="@id/tvRow1Bus"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/dividerLogCols" />
-
-                <TextView
-                    android:id="@+id/tvRow1Bus"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="271"
-                    android:textColor="#000000"
-                    android:textSize="12sp"
-                    app:layout_constraintEnd_toStartOf="@id/tvRow1EndTime"
-                    app:layout_constraintStart_toEndOf="@id/tvRow1StartTime"
-                    app:layout_constraintTop_toBottomOf="@id/dividerLogCols" />
-
-                <TextView
-                    android:id="@+id/tvRow1EndTime"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="09:45"
-                    android:textColor="#000000"
-                    android:textSize="12sp"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/tvRow1Bus"
-                    app:layout_constraintTop_toBottomOf="@id/dividerLogCols" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <TextView
-                android:id="@+id/textView10"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/logList"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="버스 운행"
-                app:layout_constraintEnd_toEndOf="@+id/drive_start"
-                app:layout_constraintStart_toStartOf="@+id/drive_start"
-                app:layout_constraintTop_toBottomOf="@+id/busicon" />
+                android:orientation="vertical">
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="08:30  |  271번  |  09:45 도착"
+                    android:textColor="#333333"
+                    android:textSize="13sp"
+                    android:paddingVertical="5dp" />
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
-    </androidx.constraintlayout.widget.ConstraintLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="10:00  |  320번  |  11:20 도착"
+                    android:textColor="#333333"
+                    android:textSize="13sp"
+                    android:paddingVertical="5dp" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
+
 
