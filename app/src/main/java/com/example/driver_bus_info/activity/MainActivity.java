@@ -39,8 +39,8 @@ public class MainActivity extends AppCompatActivity {
     private Button btnLogout;
     private Button btnQuit;
     private Button driveStart;
-    private ImageButton ivLogMore;
-    private Button btnEditProfile;
+    private ImageButton ivLogMore, btnEditProfile;
+
 
     private TextView tvHello, tvDriverName, tvCompany, tvLastLogin;
 
