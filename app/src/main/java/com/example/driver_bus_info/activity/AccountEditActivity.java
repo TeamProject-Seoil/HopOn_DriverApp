@@ -1,9 +1,15 @@
 package com.example.driver_bus_info.activity;
 
 import android.app.Dialog;
+import android.content.ContentResolver;
 import android.content.Intent;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.provider.OpenableColumns;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -19,6 +25,9 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -28,13 +37,17 @@ import com.example.driver_bus_info.service.ApiClient;
 import com.example.driver_bus_info.service.ApiService;
 import com.example.driver_bus_info.util.DeviceInfo;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import de.hdodenhof.circleimageview.CircleImageView;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -47,6 +60,7 @@ import retrofit2.Response;
  * - 스피너 도메인 ↔ 직접입력 전환
  * - 새 비밀번호 규칙 3가지 + 비밀번호 일치 여부 실시간 표시
  * - 전화번호 입력 시 자동 하이픈 포맷팅
+ * - 프로필 이미지: 최초 진입 시 서버 이미지 미리보기, 선택 시 변경 업로드, 미선택시 유지
  */
 public class AccountEditActivity extends AppCompatActivity {
 
@@ -81,6 +95,17 @@ public class AccountEditActivity extends AppCompatActivity {
     private EditText codeInput;
     private Button btnUpdate;
 
+    // ===== 프로필 이미지 UI =====
+    private CircleImageView ivProfilePreview;
+    private View btnPickImage;
+    private View btnRemoveImage;
+
+    // 업로드할 이미지 상태 (선택 안 하면 null => 기존 유지)
+    private Uri selectedImageUri = null;
+    private byte[] selectedImageBytes = null;
+    private String selectedImageMime = null;
+    private String selectedImageFileName = null;
+
     private Dialog dialog2;
 
     private TokenManager tm;
@@ -105,6 +130,10 @@ public class AccountEditActivity extends AppCompatActivity {
     private static final int COLOR_OK   = 0xFF2E7D32;
     private static final int COLOR_FAIL = 0xFFB00020;
 
+    // 갤러리 런처
+    private final ActivityResultLauncher<Intent> pickImageLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::onPickImageResult);
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -123,7 +152,7 @@ public class AccountEditActivity extends AppCompatActivity {
         api = ApiClient.get(this);
         clientType = DeviceInfo.getClientType();
 
-        preloadMe();
+        preloadMe(); // 사용자 정보 + (있으면) 서버 프로필 이미지 미리보기
     }
 
     private void bindViews() {
@@ -174,6 +203,13 @@ public class AccountEditActivity extends AppCompatActivity {
         if (tvPwMatch != null) tvPwMatch.setText("");
 
         if (companyLayout != null) companyLayout.setVisibility(View.GONE);
+
+        // ===== 프로필 이미지 UI =====
+        ivProfilePreview = findViewById(R.id.iv_profile_preview);
+        btnPickImage     = findViewById(R.id.btn_pick_image);
+        btnRemoveImage   = findViewById(R.id.btn_remove_image);
+
+        if (btnRemoveImage != null) btnRemoveImage.setEnabled(false); // 초기엔 제거 비활성화
     }
 
     private void setupEmailDomainUi() {
@@ -213,6 +249,21 @@ public class AccountEditActivity extends AppCompatActivity {
         btnSendCode.setOnClickListener(v -> sendEmailCode());
         btnVerifyCode.setOnClickListener(v -> verifyEmailCode());
         btnUpdate.setOnClickListener(v -> doUpdateFlow());
+
+        // ===== 프로필 이미지: 선택/제거 =====
+        if (btnPickImage != null) {
+            btnPickImage.setOnClickListener(v -> {
+                Intent intent = new Intent(Intent.ACTION_PICK);
+                intent.setType("image/*");
+                pickImageLauncher.launch(intent);
+            });
+        }
+        if (btnRemoveImage != null) {
+            btnRemoveImage.setOnClickListener(v -> {
+                clearSelectedImage();
+                toast("선택한 프로필 이미지를 제거했습니다.");
+            });
+        }
     }
 
     private void wireEmailChangeWatchers() {
@@ -260,7 +311,7 @@ public class AccountEditActivity extends AppCompatActivity {
         codeInput.setAlpha(alpha);
     }
 
-    /** 서버 /users/me 불러와서 기본값 세팅 */
+    /** 서버 /users/me 불러와서 기본값 세팅 + 프로필 미리보기 */
     private void preloadMe() {
         String bearer = (tm.tokenType() == null ? "Bearer" : tm.tokenType()) + " " + tm.accessToken();
         api.me(bearer, clientType).enqueue(new Callback<ApiService.UserResponse>() {
@@ -311,8 +362,50 @@ public class AccountEditActivity extends AppCompatActivity {
                 }
 
                 onEmailInputChanged();
+
+                // ===== 현재 프로필 사진 미리보기 로드 =====
+                if (ivProfilePreview != null) {
+                    if (u.hasProfileImage) {
+                        loadCurrentProfileImageIntoPreview();
+                    } else {
+                        ivProfilePreview.setImageResource(R.drawable.ic_profile_placeholder);
+                    }
+                }
             }
             @Override public void onFailure(Call<ApiService.UserResponse> call, Throwable t) {}
+        });
+    }
+
+    /** 서버의 현재 프로필 이미지를 받아 미리보기에 표시 (캐시 방지용 쿼리 파라미터 불필요: 바이트 직접 적용) */
+    private void loadCurrentProfileImageIntoPreview() {
+        String bearer = (tm.tokenType() == null ? "Bearer" : tm.tokenType()) + " " + tm.accessToken();
+        api.meImage(bearer, clientType).enqueue(new Callback<ResponseBody>() {
+            @Override public void onResponse(Call<ResponseBody> call, Response<ResponseBody> res) {
+                if (!res.isSuccessful() || res.body() == null) {
+                    ivProfilePreview.setImageResource(R.drawable.ic_profile_placeholder);
+                    return;
+                }
+                try {
+                    byte[] bytes = res.body().bytes();
+                    if (bytes != null && bytes.length > 0) {
+                        Bitmap bm = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                        if (bm != null) {
+                            ivProfilePreview.setImageBitmap(bm);
+                        } else {
+                            ivProfilePreview.setImageResource(R.drawable.ic_profile_placeholder);
+                        }
+                    } else {
+                        ivProfilePreview.setImageResource(R.drawable.ic_profile_placeholder);
+                    }
+                } catch (Exception e) {
+                    ivProfilePreview.setImageResource(R.drawable.ic_profile_placeholder);
+                }
+            }
+            @Override public void onFailure(Call<ResponseBody> call, Throwable t) {
+                if (ivProfilePreview != null) {
+                    ivProfilePreview.setImageResource(R.drawable.ic_profile_placeholder);
+                }
+            }
         });
     }
 
@@ -440,7 +533,7 @@ public class AccountEditActivity extends AppCompatActivity {
         return true;
     }
 
-    /** 프로필 업데이트: 이름은 전송하지 않음(보기 전용) */
+    /** 프로필 업데이트: 이름은 전송하지 않음(보기 전용) + 이미지 멀티파트 포함(선택시에만) */
     private void updateProfile(ProfileCallback onDone) {
         boolean emailChanged = isEmailChanged();
         String email = emailChanged ? buildEmail() : null;
@@ -452,7 +545,8 @@ public class AccountEditActivity extends AppCompatActivity {
         boolean profileChanged =
                 (emailChanged && !TextUtils.isEmpty(email)) ||
                         (!TextUtils.isEmpty(tel)  && !tel.equals(originalTel)) ||
-                        (isDriver && company != null && !company.equals(originalCompany));
+                        (isDriver && company != null && !company.equals(originalCompany)) ||
+                        (selectedImageBytes != null); // 이미지 선택 시에만 변경
 
         if (emailChanged && !emailVerified.get()) {
             toast("이메일 변경은 인증 완료 후 가능합니다");
@@ -485,6 +579,19 @@ public class AccountEditActivity extends AppCompatActivity {
 
             MultipartBody.Part filePart = null;
 
+            if (selectedImageBytes != null) {
+                MediaType mt = MediaType.parse(
+                        selectedImageMime != null ? selectedImageMime : "image/*"
+                );
+                RequestBody imgBody = RequestBody.create(selectedImageBytes, mt);
+                // 백엔드 @Part 이름이 "file"이라고 가정 (서버와 맞추어 필요 시 변경)
+                filePart = MultipartBody.Part.createFormData(
+                        "file",
+                        (selectedImageFileName == null ? "profile.jpg" : selectedImageFileName),
+                        imgBody
+                );
+            }
+
             String bearer = (tm.tokenType() == null ? "Bearer" : tm.tokenType()) + " " + tm.accessToken();
             api.updateMe(bearer, clientType, dataJson, filePart)
                     .enqueue(new Callback<ApiService.UserResponse>() {
@@ -500,6 +607,16 @@ public class AccountEditActivity extends AppCompatActivity {
                                     stopTimer();
                                     textTimer.setText("남은 시간: -");
                                     setVerificationUiEnabled(false);
+                                }
+
+                                if (selectedImageBytes != null) {
+                                    // 업로드 성공 후: 서버 이미지로 교체됐으니 로컬 선택 상태 리셋 + 서버에서 다시 로드
+                                    selectedImageBytes = null;
+                                    selectedImageUri = null;
+                                    selectedImageFileName = null;
+                                    selectedImageMime = null;
+                                    if (btnRemoveImage != null) btnRemoveImage.setEnabled(false);
+                                    loadCurrentProfileImageIntoPreview();
                                 }
                                 onDone.onDone(true);
                             } else if (res.code() == 409) {
@@ -728,6 +845,7 @@ public class AccountEditActivity extends AppCompatActivity {
     }
 
     private void wirePhoneFormatter() {
+        if (editPhone == null) return;
         editPhone.addTextChangedListener(new TextWatcher() {
             private boolean isFormatting;
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -754,6 +872,76 @@ public class AccountEditActivity extends AppCompatActivity {
                 isFormatting = false;
             }
         });
+    }
+
+    // ===== 갤러리 결과 처리 =====
+    private void onPickImageResult(ActivityResult result) {
+        if (result.getResultCode() != RESULT_OK || result.getData() == null) return;
+        Uri uri = result.getData().getData();
+        if (uri == null) return;
+
+        try {
+            ContentResolver cr = getContentResolver();
+            String mime = cr.getType(uri);
+            String name = queryDisplayName(uri);
+            if (name == null) name = "profile.jpg";
+
+            // 바이트로 읽기
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try (InputStream is = cr.openInputStream(uri)) {
+                if (is == null) { toast("이미지를 불러올 수 없습니다."); return; }
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = is.read(buf)) > 0) bos.write(buf, 0, n);
+            }
+            byte[] bytes = bos.toByteArray();
+            if (bytes.length == 0) { toast("이미지 파일이 비어 있습니다."); return; }
+
+            selectedImageUri = uri;
+            selectedImageBytes = bytes;
+            selectedImageMime = (mime == null ? "image/*" : mime);
+            selectedImageFileName = name;
+
+            // 미리보기 (로컬 선택 이미지)
+            if (ivProfilePreview != null) {
+                ivProfilePreview.setImageURI(null); // 캐시 방지
+                ivProfilePreview.setImageURI(uri);
+            }
+            if (btnRemoveImage != null) btnRemoveImage.setEnabled(true);
+
+            toast("프로필 이미지를 선택했습니다.");
+
+        } catch (Exception e) {
+            toast("이미지 처리 오류: " + e.getMessage());
+        }
+    }
+
+    private void clearSelectedImage() {
+        selectedImageUri = null;
+        selectedImageBytes = null;
+        selectedImageMime = null;
+        selectedImageFileName = null;
+        if (ivProfilePreview != null) {
+            ivProfilePreview.setImageResource(R.drawable.ic_profile_placeholder);
+        }
+        if (btnRemoveImage != null) btnRemoveImage.setEnabled(false);
+    }
+
+    @Nullable
+    private String queryDisplayName(Uri uri) {
+        String name = null;
+        Cursor c = null;
+        try {
+            c = getContentResolver().query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null);
+            if (c != null && c.moveToFirst()) {
+                int idx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (idx >= 0) name = c.getString(idx);
+            }
+        } catch (Exception ignore) {
+        } finally {
+            if (c != null) c.close();
+        }
+        return name;
     }
 
     private interface ProfileCallback {
