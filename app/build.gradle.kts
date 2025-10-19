@@ -45,6 +45,7 @@ dependencies {
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
 
+    implementation("de.hdodenhof:circleimageview:3.1.0")
     implementation("com.naver.maps:map-sdk:3.21.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation ("com.squareup.retrofit2:retrofit:2.11.0")
