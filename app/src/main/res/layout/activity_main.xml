@@ -62,11 +62,15 @@
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
 
+                <!-- ★ 프로필 이미지: 원형 + centerCrop -->
                 <ImageView
                     android:id="@+id/imgDriverProfile"
-                    android:layout_width="80dp"
-                    android:layout_height="80dp"
-                    android:padding="10dp"
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:background="@drawable/circle_mask"
+                    android:scaleType="centerCrop"
+                    android:clipToOutline="true"
+                    android:contentDescription="@string/app_name"
                     android:src="@drawable/ic_bus" />
 
                 <LinearLayout
@@ -170,7 +174,6 @@
                 app:lottie_loop="true"
                 app:lottie_rawRes="@raw/bus_motion"/>
 
-
             <Button
                 android:id="@+id/drive_start"
                 android:layout_width="wrap_content"
@@ -260,5 +263,3 @@
     </androidx.cardview.widget.CardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-
-

@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Dialog;
 import android.content.Intent;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -13,6 +14,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -30,6 +32,7 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -41,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
     private Button driveStart;
     private ImageButton ivLogMore, btnEditProfile;
 
+    private ImageView imgDriverProfile; // ← 프로필 이미지 뷰
 
     private TextView tvHello, tvDriverName, tvCompany, tvLastLogin;
 
@@ -71,6 +75,8 @@ public class MainActivity extends AppCompatActivity {
         ivLogMore      = findViewById(R.id.ivLogMore);
         btnEditProfile = findViewById(R.id.btnEditProfile);
 
+        imgDriverProfile = findViewById(R.id.imgDriverProfile); // ← 바인딩
+
         tvHello       = findViewById(R.id.tvHello);
         tvDriverName  = findViewById(R.id.tvDriverName);
         tvCompany     = findViewById(R.id.tvCompany);
@@ -93,7 +99,7 @@ public class MainActivity extends AppCompatActivity {
             tvHello.setText("환영합니다.");
         }
 
-        loadProfile();
+        loadProfile(); // 프로필 + 이미지 로드
 
         btnLogout.setOnClickListener(new DebouncedClick() {
             @Override public void onDebouncedClick(View v) {
@@ -120,7 +126,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadProfile() {
-        String bearer = (tm.tokenType() != null ? tm.tokenType() : "Bearer") + " " + tm.accessToken();
+        final String bearer = (tm.tokenType() != null ? tm.tokenType() : "Bearer") + " " + tm.accessToken();
 
         api.me(bearer, clientType).enqueue(new Callback<ApiService.UserResponse>() {
             @Override
@@ -152,10 +158,31 @@ public class MainActivity extends AppCompatActivity {
                         tvLastLogin.setVisibility(View.GONE);
                     }
                 }
+
+                // ★ 프로필 이미지까지 로드 (엔드포인트에서 바이너리 제공한다고 가정)
+                loadProfileImage(bearer);
             }
 
             @Override public void onFailure(Call<ApiService.UserResponse> call, Throwable t) {
                 setLastLoginFromJwtFallback();
+                // 이미지도 네트워크 실패 시 기본 아이콘 유지
+            }
+        });
+    }
+
+    /** 프로필 이미지 로드: 성공 시 원형으로 centerCrop 표시, 실패 시 기본 아이콘 유지 */
+    private void loadProfileImage(String bearer) {
+        api.meImage(bearer, clientType).enqueue(new Callback<ResponseBody>() {
+            @Override public void onResponse(Call<ResponseBody> call, Response<ResponseBody> res) {
+                if (!res.isSuccessful() || res.body() == null || imgDriverProfile == null) return;
+                try {
+                    imgDriverProfile.setImageBitmap(BitmapFactory.decodeStream(res.body().byteStream()));
+                } catch (Exception ignore) {
+                    // 디코드 실패 시 기본 아이콘 유지
+                }
+            }
+            @Override public void onFailure(Call<ResponseBody> call, Throwable t) {
+                // 실패 시 기본 아이콘 유지
             }
         });
     }
@@ -171,7 +198,6 @@ public class MainActivity extends AppCompatActivity {
 
     private Long toEpochMillis(String iso) {
         if (iso == null || iso.isEmpty()) return null;
-        // 다양한 ISO 패턴 커버
         String[] patterns = {
                 "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", "yyyy-MM-dd'T'HH:mm:ssXXX",
                 "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", "yyyy-MM-dd'T'HH:mm:ss'Z'",

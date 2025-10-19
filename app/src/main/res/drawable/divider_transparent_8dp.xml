@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <!-- 세로 LinearLayout에서 항목 사이 간격 8dp -->
+    <size android:height="8dp"/>
+    <solid android:color="@android:color/transparent"/>
+</shape>
