@@ -12,7 +12,6 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -30,6 +29,7 @@ import com.google.android.material.textfield.TextInputLayout;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 
 import okhttp3.ResponseBody;
@@ -39,13 +39,11 @@ import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity {
 
-    private Button btnLogout;
-    private Button btnQuit;
-    private Button driveStart;
     private ImageButton ivLogMore, btnEditProfile;
+    private ImageButton btnNotice, btnSettings;
+    private TextView tvNoticeBadge;
 
-    private ImageView imgDriverProfile; // ← 프로필 이미지 뷰
-
+    private ImageView imgDriverProfile;
     private TextView tvHello, tvDriverName, tvCompany, tvLastLogin;
 
     private TokenManager tm;
@@ -69,13 +67,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        btnLogout      = findViewById(R.id.btnLogout);
-        btnQuit        = findViewById(R.id.btnQuit);
-        driveStart     = findViewById(R.id.drive_start);
-        ivLogMore      = findViewById(R.id.ivLogMore);
-        btnEditProfile = findViewById(R.id.btnEditProfile);
+        // top-right
+        btnNotice     = findViewById(R.id.btnNotice);
+        btnSettings   = findViewById(R.id.btnSettings);
+        tvNoticeBadge = findViewById(R.id.tvNoticeBadge);
 
-        imgDriverProfile = findViewById(R.id.imgDriverProfile); // ← 바인딩
+        ivLogMore        = findViewById(R.id.ivLogMore);
+        btnEditProfile   = findViewById(R.id.btnEditProfile);
+        imgDriverProfile = findViewById(R.id.imgDriverProfile);
 
         tvHello       = findViewById(R.id.tvHello);
         tvDriverName  = findViewById(R.id.tvDriverName);
@@ -99,18 +98,20 @@ public class MainActivity extends AppCompatActivity {
             tvHello.setText("환영합니다.");
         }
 
-        loadProfile(); // 프로필 + 이미지 로드
+        // Top-right actions
+        btnNotice.setOnClickListener(v ->
+                startActivity(new Intent(MainActivity.this, NoticeActivity.class)));
+        btnSettings.setOnClickListener(v ->
+                startActivity(new Intent(MainActivity.this, SettingsActivity.class)));
 
-        btnLogout.setOnClickListener(new DebouncedClick() {
-            @Override public void onDebouncedClick(View v) {
-                try { tm.clear(); } catch (Exception ignore) {}
-                goLogin();
-            }
-        });
-        btnQuit.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, UserQuitActivity.class)));
-        driveStart.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, BusListActivity.class)));
-        ivLogMore.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, BusLogActivity.class)));
+        // 기타
+        ivLogMore.setOnClickListener(v ->
+                startActivity(new Intent(MainActivity.this, BusLogActivity.class)));
         btnEditProfile.setOnClickListener(v -> showVerifyPasswordDialog());
+
+        // 데이터 로드
+        loadProfile();
+        fetchUnreadNoticeCount(); // 배지 갱신
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() { confirmExit(); }
@@ -122,6 +123,39 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         if (tm != null && tm.accessToken() != null) {
             loadProfile();
+            fetchUnreadNoticeCount();
+        }
+    }
+
+    /** 서버에서 미확인 공지 개수 조회 -> 오른쪽 상단 배지 갱신 */
+    private void fetchUnreadNoticeCount() {
+        if (tm == null || tm.accessToken() == null) {
+            updateNoticeBadge(0);
+            return;
+        }
+        final String bearer = (tm.tokenType() != null ? tm.tokenType() : "Bearer") + " " + tm.accessToken();
+
+        api.getUnreadNoticeCount(bearer).enqueue(new Callback<Map<String, Integer>>() {
+            @Override public void onResponse(Call<Map<String, Integer>> call, Response<Map<String, Integer>> res) {
+                if (!res.isSuccessful() || res.body() == null) { updateNoticeBadge(0); return; }
+                Integer c = res.body().get("count");
+                if (c == null) c = res.body().get("unreadCount");
+                updateNoticeBadge(c == null ? 0 : c);
+            }
+            @Override public void onFailure(Call<Map<String, Integer>> call, Throwable t) {
+                updateNoticeBadge(0);
+            }
+        });
+    }
+
+    /** 배지 표시/숨김 */
+    private void updateNoticeBadge(int unreadCount) {
+        if (tvNoticeBadge == null) return;
+        if (unreadCount > 0) {
+            tvNoticeBadge.setText(unreadCount > 99 ? "99+" : String.valueOf(unreadCount));
+            tvNoticeBadge.setVisibility(View.VISIBLE);
+        } else {
+            tvNoticeBadge.setVisibility(View.GONE);
         }
     }
 
@@ -159,35 +193,27 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                // ★ 프로필 이미지까지 로드 (엔드포인트에서 바이너리 제공한다고 가정)
                 loadProfileImage(bearer);
             }
 
             @Override public void onFailure(Call<ApiService.UserResponse> call, Throwable t) {
                 setLastLoginFromJwtFallback();
-                // 이미지도 네트워크 실패 시 기본 아이콘 유지
             }
         });
     }
 
-    /** 프로필 이미지 로드: 성공 시 원형으로 centerCrop 표시, 실패 시 기본 아이콘 유지 */
     private void loadProfileImage(String bearer) {
         api.meImage(bearer, clientType).enqueue(new Callback<ResponseBody>() {
             @Override public void onResponse(Call<ResponseBody> call, Response<ResponseBody> res) {
                 if (!res.isSuccessful() || res.body() == null || imgDriverProfile == null) return;
                 try {
                     imgDriverProfile.setImageBitmap(BitmapFactory.decodeStream(res.body().byteStream()));
-                } catch (Exception ignore) {
-                    // 디코드 실패 시 기본 아이콘 유지
-                }
+                } catch (Exception ignore) {}
             }
-            @Override public void onFailure(Call<ResponseBody> call, Throwable t) {
-                // 실패 시 기본 아이콘 유지
-            }
+            @Override public void onFailure(Call<ResponseBody> call, Throwable t) { }
         });
     }
 
-    /** 둘 중 최신 ISO 문자열 고르기 */
     private String pickMostRecentIso(String a, String b) {
         Long ta = toEpochMillis(a);
         Long tb = toEpochMillis(b);
@@ -206,9 +232,9 @@ public class MainActivity extends AppCompatActivity {
         };
         for (String p : patterns) {
             try {
-                java.text.SimpleDateFormat in = new java.text.SimpleDateFormat(p, java.util.Locale.US);
-                if (p.endsWith("'Z'")) in.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
-                else if (!p.endsWith("XXX")) in.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+                SimpleDateFormat in = new SimpleDateFormat(p, Locale.US);
+                if (p.endsWith("'Z'")) in.setTimeZone(TimeZone.getTimeZone("UTC"));
+                else if (!p.endsWith("XXX")) in.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
                 Date d = in.parse(iso);
                 if (d != null) return d.getTime();
             } catch (Exception ignore) {}
@@ -216,13 +242,10 @@ public class MainActivity extends AppCompatActivity {
         return null;
     }
 
-    /** ISO를 KST 표시 문자열로 */
     private String formatToKST(String iso) {
         if (iso == null || iso.isEmpty()) return null;
-
-        java.text.SimpleDateFormat out = new java.text.SimpleDateFormat("yyyy.MM.dd HH:mm:ss", java.util.Locale.KOREA);
-        out.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
-
+        SimpleDateFormat out = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss", Locale.KOREA);
+        out.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
         String[] patterns = {
                 "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", "yyyy-MM-dd'T'HH:mm:ssXXX",
                 "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", "yyyy-MM-dd'T'HH:mm:ss'Z'",
@@ -231,9 +254,9 @@ public class MainActivity extends AppCompatActivity {
         };
         for (String p : patterns) {
             try {
-                java.text.SimpleDateFormat in = new java.text.SimpleDateFormat(p, java.util.Locale.US);
-                if (p.endsWith("'Z'")) in.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
-                else if (!p.endsWith("XXX")) in.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+                SimpleDateFormat in = new SimpleDateFormat(p, Locale.US);
+                if (p.endsWith("'Z'")) in.setTimeZone(TimeZone.getTimeZone("UTC"));
+                else if (!p.endsWith("XXX")) in.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
                 Date d = in.parse(iso);
                 if (d != null) return out.format(d);
             } catch (Exception ignore) {}
@@ -323,7 +346,7 @@ public class MainActivity extends AppCompatActivity {
             }
 
             ApiService.AuthRequest req = new ApiService.AuthRequest(userid, pwd, clientType, tm.deviceId());
-            api.login(req).enqueue(new Callback<ApiService.AuthResponse>() {
+            ApiClient.get(this).login(req).enqueue(new Callback<ApiService.AuthResponse>() {
                 @Override public void onResponse(Call<ApiService.AuthResponse> call, Response<ApiService.AuthResponse> res) {
                     if (res.isSuccessful() && res.body() != null) {
                         dialog.dismiss();
