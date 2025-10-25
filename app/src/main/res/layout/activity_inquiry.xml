@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/swipe"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/white">
+
+        <!-- 헤더 -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="104dp"
+            android:background="#4285F4"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="28dp"
+            android:paddingBottom="12dp">
+
+            <ImageButton
+                android:id="@+id/btn_back"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="뒤로가기"
+                android:src="@drawable/ic_back"
+                app:tint="#FFFFFF"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:text="문의"
+                android:textColor="@android:color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"/>
+        </RelativeLayout>
+
+        <!-- 필터 바 -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/white"
+            android:paddingVertical="8dp"
+            android:paddingHorizontal="12dp"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_all"
+                    style="@style/FilterButton"
+                    android:text="전체(0)"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_filter_blue"
+                    android:textColor="#1A73E8"/>
+
+                <Button
+                    android:id="@+id/btn_open"
+                    style="@style/FilterButton"
+                    android:text="접수(0)"
+                    android:layout_marginEnd="8dp"/>
+
+                <Button
+                    android:id="@+id/btn_answered"
+                    style="@style/FilterButton"
+                    android:text="답변(0)"
+                    android:layout_marginEnd="8dp"/>
+
+                <Button
+                    android:id="@+id/btn_closed"
+                    style="@style/FilterButton"
+                    android:text="종료(0)"
+                    android:layout_marginEnd="8dp"/>
+
+                <Button
+                    android:id="@+id/btn_mine"
+                    style="@style/FilterButton"
+                    android:text="내 문의만: 끔"
+                    android:visibility="gone"/>
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <!-- 비로그인 안내 -->
+        <LinearLayout
+            android:id="@+id/view_login_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="8dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="로그인 시 내 문의 목록을 확인할 수 있습니다."
+                android:textColor="#666666"
+                android:textSize="14sp"/>
+        </LinearLayout>
+
+        <!-- 리스트 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:padding="12dp"
+            android:clipToPadding="false"
+            android:scrollbars="vertical"/>
+
+        <!-- 하단 '문의 작성' 버튼 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_write"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="문의 작성"
+            android:textStyle="bold"
+            android:textColor="@android:color/white"
+            app:backgroundTint="#4285F4"
+            app:rippleColor="#33FFFFFF"
+            app:cornerRadius="12dp"
+            android:layout_margin="16dp"/>
+    </LinearLayout>
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

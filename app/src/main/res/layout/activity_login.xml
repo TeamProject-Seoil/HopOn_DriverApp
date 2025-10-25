@@ -8,11 +8,7 @@
     android:background="@drawable/bg_login_gradient"
     tools:context=".activity.LoginActivity">
 
-    <!-- 부드러운 배경 그라데이션 -->
-    <!-- res/drawable/bg_login_gradient.xml -->
-    <!-- 참고용: <gradient android:startColor="#4A92FD" android:endColor="#80C3FF" /> -->
-
-    <!-- 상단 버스 애니메이션 (Lottie) -->
+    <!-- 상단 버스 애니메이션 -->
     <com.airbnb.lottie.LottieAnimationView
         android:id="@+id/lottieBus"
         android:layout_width="200dp"
@@ -42,7 +38,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="32dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="12dp"
         app:cardCornerRadius="24dp"
         app:cardElevation="10dp"
         app:layout_constraintTop_toBottomOf="@id/lottieBus"
@@ -116,9 +112,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:gravity="center"
-                android:orientation="horizontal">
-
+                android:gravity="center">
 
                 <Button
                     android:id="@+id/button_find_idpw"
@@ -151,5 +145,43 @@
 
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
+
+    <!-- 로그인 카드 아래 중앙: 안내 문구 + 문의 버튼 -->
+    <LinearLayout
+        android:id="@+id/centerInquiryArea"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:layout_marginTop="28dp"
+        app:layout_constraintTop_toBottomOf="@id/loginCard"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/tvTestCenterNote"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="도움이 필요하신가요? 아래에서 문의를 남겨주세요."
+            android:textColor="#335"
+            android:textSize="13sp"
+            android:paddingTop="32dp"
+            android:paddingBottom="8dp"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnGoInquiry"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="문의"
+            android:textAllCaps="false"
+            android:textColor="#4A92FD"
+            app:icon="@drawable/ic_question"
+            app:iconPadding="8dp"
+            app:iconTint="#4A92FD"
+            app:strokeWidth="0dp"
+        />
+
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

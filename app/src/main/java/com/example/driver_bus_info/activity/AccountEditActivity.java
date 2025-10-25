@@ -643,21 +643,27 @@ public class AccountEditActivity extends AppCompatActivity {
         String bearer = (tm.tokenType() == null ? "Bearer" : tm.tokenType()) + " " + tm.accessToken();
         ApiService.ChangePasswordRequest body = new ApiService.ChangePasswordRequest(currentPw, newPw);
 
-        api.changePassword(bearer, clientType, body).enqueue(new Callback<okhttp3.ResponseBody>() {
-            @Override public void onResponse(Call<okhttp3.ResponseBody> call, Response<okhttp3.ResponseBody> res) {
-                if (res.isSuccessful()) {
-                    silentReloginWithNewPassword(newPw);
-                } else if (res.code() == 400) {
-                    toast("현재 비밀번호가 올바르지 않거나 정책 위반입니다.");
-                } else {
-                    toast("비밀번호 변경 실패 (" + res.code() + ")");
-                }
-            }
-            @Override public void onFailure(Call<okhttp3.ResponseBody> call, Throwable t) {
-                toast("네트워크 오류: " + t.getMessage());
-            }
-        });
+        api.changePassword(bearer, clientType, body)
+                .enqueue(new retrofit2.Callback<java.util.Map<String, Object>>() {
+                    @Override
+                    public void onResponse(retrofit2.Call<java.util.Map<String, Object>> call,
+                                           retrofit2.Response<java.util.Map<String, Object>> res) {
+                        if (res.isSuccessful()) {
+                            silentReloginWithNewPassword(newPw);
+                        } else if (res.code() == 400) {
+                            toast("현재 비밀번호가 올바르지 않거나 정책 위반입니다.");
+                        } else {
+                            toast("비밀번호 변경 실패 (" + res.code() + ")");
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(retrofit2.Call<java.util.Map<String, Object>> call, Throwable t) {
+                        toast("네트워크 오류: " + t.getMessage());
+                    }
+                });
     }
+
 
     private void silentReloginWithNewPassword(String newPw) {
         String userid = safe(editId.getText());
