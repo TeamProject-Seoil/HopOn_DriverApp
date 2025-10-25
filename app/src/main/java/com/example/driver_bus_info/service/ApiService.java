@@ -79,19 +79,23 @@ public interface ApiService {
                                  @Query("email") String email);
 
     // 이메일 인증
-    class SendEmailCodeRequest { public String email, purpose;
-        public SendEmailCodeRequest(String e, String p){ email=e; purpose=p; } }
-    class VerifyEmailCodeRequest { public String verificationId,email,purpose,code;
+    class SendEmailCodeRequest {
+        public String email, purpose;
+        public SendEmailCodeRequest(String e, String p){ email=e; purpose=p; }
+    }
+    class VerifyEmailCodeRequest {
+        public String verificationId,email,purpose,code;
         public VerifyEmailCodeRequest(String v,String e,String p,String c){
-            verificationId=v; email=e; purpose=p; code=c; } }
+            verificationId=v; email=e; purpose=p; code=c; }
+    }
 
     @POST("/auth/email/send-code")   Call<Map<String,Object>> sendEmail(@Body SendEmailCodeRequest req);
     @POST("/auth/email/verify-code") Call<Map<String,Object>> verifyEmail(@Body VerifyEmailCodeRequest req);
 
     // 아이디/비번 찾기
-    @POST("/auth/find-id-after-verify")           Call<Map<String,Object>> findIdAfterVerify(@Body Map<String,Object> body);
-    @POST("/auth/reset-password-after-verify")    Call<Map<String,Object>> resetPasswordAfterVerify(@Body Map<String,Object> body);
-    @POST("/auth/verify-pw-user")                 Call<Map<String,Object>> verifyPwUser(@Body Map<String,Object> body);
+    @POST("/auth/find-id-after-verify")        Call<Map<String,Object>> findIdAfterVerify(@Body Map<String,Object> body);
+    @POST("/auth/reset-password-after-verify") Call<Map<String,Object>> resetPasswordAfterVerify(@Body Map<String,Object> body);
+    @POST("/auth/verify-pw-user")              Call<Map<String,Object>> verifyPwUser(@Body Map<String,Object> body);
 
     // =========================================================
     // ===================== 로그인 사용자 ======================
@@ -192,17 +196,31 @@ public interface ApiService {
         public String createdAt, updatedAt;
     }
 
+    /**
+     * 공지 목록
+     * (필요 시 인터셉터로 Authorization 자동 부착. 여기서는 파라미터 없이 사용)
+     */
     @GET("/api/notices")
-    Call<PageResponse<NoticeResp>> getNotices(@Header("X-User-Role") String role,
-                                              @Query("page") int page,
+    Call<PageResponse<NoticeResp>> getNotices(@Query("page") int page,
                                               @Query("size") int size,
                                               @Query("sort") String sort,
                                               @Query("q") String q,
                                               @Query("type") String type);
 
+    /** 공지 상세 (increase=true면 조회수 +1, markRead=true면 사용자 기준 읽음 처리) */
     @GET("/api/notices/{id}")
-    Call<NoticeResp> getNoticeDetail(@Path("id") Long id,
+    Call<NoticeResp> getNoticeDetail(@Header("Authorization") String bearer,
+                                     @Path("id") Long id,
                                      @Query("increase") boolean increase);
+
+    // ★ 전용 읽음 처리 호출
+    @POST("/api/notices/{id}/read")
+    Call<Void> markNoticeRead(@Header("Authorization") String bearer,
+                              @Path("id") Long id);
+
+    /** 미확인 공지 개수 (배지용) */
+    @GET("/api/notices/unread-count")
+    Call<Map<String, Integer>> getUnreadNoticeCount(@Header("Authorization") String bearer);
 
     // =========================================================
     // ===================== 문의(Inquiry) API ==================

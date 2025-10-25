@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.driver_bus_info.R;
 import com.example.driver_bus_info.adapter.NoticeAdapter;
+import com.example.driver_bus_info.core.TokenManager;
 import com.example.driver_bus_info.service.ApiClient;
 import com.example.driver_bus_info.service.ApiService;
 
@@ -39,12 +40,15 @@ public class NoticeActivity extends AppCompatActivity {
 
     private long countAll = 0L, countInfo = 0L, countUpdate = 0L, countMaint = 0L;
 
+    private TokenManager tm;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notice);
 
         api = ApiClient.get(getApplicationContext());
+        tm  = TokenManager.get(this);
 
         backBtn   = findViewById(R.id.notice_back_button);
         btnAll    = findViewById(R.id.btn_all);
@@ -63,14 +67,39 @@ public class NoticeActivity extends AppCompatActivity {
         recycler.setItemAnimator(animator);
         recycler.setAdapter(adapter);
 
+        // 카드 펼칠 때 상세 조회 + 읽음 처리 (increase=true, markRead=true)
+        // 카드 펼칠 때 상세 조회 + 읽음 처리
         adapter.setOnItemToggle((notice, expanded) -> {
-            if (expanded) {
-                api.getNoticeDetail(notice.id, true).enqueue(new Callback<ApiService.NoticeResp>() {
-                    @Override public void onResponse(Call<ApiService.NoticeResp> call, Response<ApiService.NoticeResp> resp) { }
-                    @Override public void onFailure (Call<ApiService.NoticeResp> call, Throwable t) { }
-                });
+            if (!expanded) return;
+
+            String bearer = buildBearer();
+            if (bearer == null) {
+                Toast.makeText(this, "로그인이 필요합니다(읽음 처리 불가)", Toast.LENGTH_SHORT).show();
+                return;
             }
+
+            // 1) 읽음 처리 (POST /read)
+            api.markNoticeRead(bearer, notice.id).enqueue(new Callback<Void>() {
+                @Override public void onResponse(Call<Void> call, Response<Void> resp) {
+                    // 읽음 처리 성공/실패와 관계없이 상세는 조회수 증가 위해 호출
+                    // 2) 상세 조회 (increase=true, markRead 제거)
+                    api.getNoticeDetail(bearer, notice.id, true)
+                            .enqueue(new Callback<ApiService.NoticeResp>() {
+                                @Override public void onResponse(Call<ApiService.NoticeResp> call, Response<ApiService.NoticeResp> r) { /* no-op */ }
+                                @Override public void onFailure (Call<ApiService.NoticeResp> call, Throwable t) { /* no-op */ }
+                            });
+                }
+                @Override public void onFailure(Call<Void> call, Throwable t) {
+                    // 실패해도 상세 호출은 진행(뷰카운트 반영)
+                    api.getNoticeDetail(bearer, notice.id, true)
+                            .enqueue(new Callback<ApiService.NoticeResp>() {
+                                @Override public void onResponse(Call<ApiService.NoticeResp> call, Response<ApiService.NoticeResp> r) { /* no-op */ }
+                                @Override public void onFailure (Call<ApiService.NoticeResp> call, Throwable tt) { /* no-op */ }
+                            });
+                }
+            });
         });
+
 
         btnAll.setOnClickListener(v -> selectType(null));
         btnInfo.setOnClickListener(v -> selectType("INFO"));
@@ -102,6 +131,12 @@ public class NoticeActivity extends AppCompatActivity {
         selectType(null);
     }
 
+    private String buildBearer() {
+        if (tm == null || tm.accessToken() == null) return null;
+        String type = tm.tokenType() != null ? tm.tokenType() : "Bearer";
+        return type + " " + tm.accessToken();
+    }
+
     private void selectType(@Nullable String type) {
         currentType = type;
         styleFilterButtons();
@@ -120,6 +155,7 @@ public class NoticeActivity extends AppCompatActivity {
         setBtnStyle(btnInfo,  "INFO".equals(currentType));
         setBtnStyle(btnUpdate,"UPDATE".equals(currentType));
         setBtnStyle(btnMaint, "MAINTENANCE".equals(currentType));
+        // Material tint 간섭 방지
         btnAll.setBackgroundTintList((ColorStateList) null);
         btnInfo.setBackgroundTintList((ColorStateList) null);
         btnUpdate.setBackgroundTintList((ColorStateList) null);
@@ -134,19 +170,16 @@ public class NoticeActivity extends AppCompatActivity {
     private void reloadFirstPage() { page = 0; last = false; requestPage(true); }
     private void loadNextPage()    { if (!last && !loading) { page++; requestPage(false); } }
 
-    @Nullable private String resolveRoleHeaderOrNull() { return null; }
-
     private void requestPage(boolean clear) {
         if (loading) return;
         loading = true;
         if (clear && !swipe.isRefreshing()) swipe.setRefreshing(true);
 
-        String roleHeader = resolveRoleHeaderOrNull();
-        String sort = "updatedAt,desc";
-        String q = null;
-        String type = currentType;
+        final String sort = "updatedAt,desc";
+        final String q    = null; // 검색어 쓰면 여기에 바인딩
+        final String type = currentType; // INFO/UPDATE/MAINTENANCE 또는 null
 
-        api.getNotices(roleHeader, page, size, sort, q, type)
+        api.getNotices(page, size, sort, q, type)
                 .enqueue(new Callback<ApiService.PageResponse<ApiService.NoticeResp>>() {
                     @Override
                     public void onResponse(Call<ApiService.PageResponse<ApiService.NoticeResp>> call,
@@ -171,18 +204,18 @@ public class NoticeActivity extends AppCompatActivity {
                 });
     }
 
+    /** 각 유형별 전체 개수(서버 totalElements 이용) */
     private void refreshCounts() {
-        final String roleHeader = resolveRoleHeaderOrNull();
         final String sort = "updatedAt,desc";
-        final String q = null;
+        final String q    = null;
 
-        api.getNotices(roleHeader, 0, 1, sort, q, null)
+        api.getNotices(0, 1, sort, q, null)
                 .enqueue(new CountCb(v -> { countAll = v; updateFilterButtonTexts(); }));
-        api.getNotices(roleHeader, 0, 1, sort, q, "INFO")
+        api.getNotices(0, 1, sort, q, "INFO")
                 .enqueue(new CountCb(v -> { countInfo = v; updateFilterButtonTexts(); }));
-        api.getNotices(roleHeader, 0, 1, sort, q, "UPDATE")
+        api.getNotices(0, 1, sort, q, "UPDATE")
                 .enqueue(new CountCb(v -> { countUpdate = v; updateFilterButtonTexts(); }));
-        api.getNotices(roleHeader, 0, 1, sort, q, "MAINTENANCE")
+        api.getNotices(0, 1, sort, q, "MAINTENANCE")
                 .enqueue(new CountCb(v -> { countMaint = v; updateFilterButtonTexts(); }));
     }
 

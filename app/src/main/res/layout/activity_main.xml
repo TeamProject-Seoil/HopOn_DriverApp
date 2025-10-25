@@ -23,6 +23,62 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
+    <!-- 상단 오른쪽: 공지/설정 (간격 포함) -->
+    <LinearLayout
+        android:id="@+id/topRightContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- 공지 + 배지 -->
+        <FrameLayout
+            android:id="@+id/btnNoticeWrap"
+            android:layout_width="40dp"
+            android:layout_height="40dp">
+
+            <ImageButton
+                android:id="@+id/btnNotice"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/transparent"
+                android:src="@drawable/ic_bell"
+                app:tint="#4B93FF"
+                android:contentDescription="@string/app_name"/>
+
+            <TextView
+                android:id="@+id/tvNoticeBadge"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="end|top"
+                android:background="@drawable/bg_badge_red"
+                android:gravity="center"
+                android:text="•"
+                android:textColor="@android:color/white"
+                android:textSize="10sp"
+                android:visibility="gone"/>
+        </FrameLayout>
+
+        <!-- 간격 -->
+        <Space
+            android:layout_width="10dp"
+            android:layout_height="1dp"/>
+
+        <!-- 설정 -->
+        <ImageButton
+            android:id="@+id/btnSettings"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_settings_gear"
+            app:tint="#4B93FF"
+            android:contentDescription="@string/app_name"/>
+    </LinearLayout>
+
     <!-- 환영 문구 -->
     <TextView
         android:id="@+id/tvHello"
@@ -62,7 +118,7 @@
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
 
-                <!-- ★ 프로필 이미지: 원형 + centerCrop -->
+                <!-- 원형 프로필 -->
                 <ImageView
                     android:id="@+id/imgDriverProfile"
                     android:layout_width="64dp"
@@ -113,34 +169,6 @@
                     android:src="@drawable/edit"
                     android:background="@android:color/transparent"
                     app:tint="#4B93FF" />
-            </LinearLayout>
-
-            <!-- 로그아웃/회원탈퇴 버튼 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:orientation="horizontal"
-                android:gravity="end">
-
-                <Button
-                    android:id="@+id/btnLogout"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="로그아웃"
-                    android:textColor="#4B93FF"
-                    android:textSize="12sp"
-                    android:background="@android:color/transparent"/>
-
-                <Button
-                    android:id="@+id/btnQuit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="회원탈퇴"
-                    android:textColor="#E74C3C"
-                    android:textSize="12sp"
-                    android:layout_marginStart="12dp"
-                    android:background="@android:color/transparent"/>
             </LinearLayout>
         </LinearLayout>
     </androidx.cardview.widget.CardView>
