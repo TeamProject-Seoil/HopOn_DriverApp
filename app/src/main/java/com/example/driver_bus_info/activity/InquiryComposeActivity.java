@@ -19,10 +19,10 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.driver_bus_info.R;
+import com.example.driver_bus_info.core.TokenManager;
 import com.example.driver_bus_info.service.ApiClient;
 import com.example.driver_bus_info.service.ApiService;
 import com.example.driver_bus_info.util.DeviceInfo;
-import com.example.driver_bus_info.util.TokenStore;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
@@ -63,6 +63,8 @@ public class InquiryComposeActivity extends AppCompatActivity {
     @Nullable private String meEmail  = null;
     @Nullable private String meRole   = null;
 
+    private TokenManager tm;
+
     private final List<Uri> selectedUris = new ArrayList<>();
     private final ActivityResultLauncher<String[]> pickFiles =
             registerForActivityResult(new ActivityResultContracts.OpenMultipleDocuments(),
@@ -79,6 +81,7 @@ public class InquiryComposeActivity extends AppCompatActivity {
         setContentView(R.layout.activity_inquiry_compose);
 
         clientType = DeviceInfo.getClientType();
+        tm = TokenManager.get(this);
 
         btnBack       = findViewById(R.id.notice_back_button);
         btnAttach     = findViewById(R.id.btn_attach);
@@ -116,9 +119,10 @@ public class InquiryComposeActivity extends AppCompatActivity {
         });
         tilPassword.setVisibility(View.GONE);
 
-        String access = TokenStore.getAccess();
+        // ===== 로그인 상태라면 이름/이메일만 미리 채우고 읽기 전용으로 =====
+        String access = tm.accessToken();
         if (!TextUtils.isEmpty(access)) {
-            String bearer = TokenStore.bearerOrNull(this);
+            final String bearer = (tm.tokenType() != null ? tm.tokenType() : "Bearer") + " " + access;
             ApiClient.get(getApplicationContext())
                     .me(bearer, clientType)
                     .enqueue(new Callback<ApiService.UserResponse>() {
@@ -127,23 +131,26 @@ public class InquiryComposeActivity extends AppCompatActivity {
                                 ApiService.UserResponse me = res.body();
                                 meUserid = me.userid; meEmail = me.email; meRole = me.role;
 
+                                // 이름 자동 입력 (username > userid)
                                 String nameAuto = (me.username != null && !me.username.trim().isEmpty())
                                         ? me.username : (me.userid != null ? me.userid : "");
-                                etName.setText(nameAuto);
+                                if (!TextUtils.isEmpty(nameAuto)) {
+                                    etName.setText(nameAuto);
+                                    etName.setEnabled(false); // 이름 수정 불가
+                                }
 
-                                if (me.email != null && me.email.contains("@")) {
+                                // 이메일 자동 입력
+                                if (!TextUtils.isEmpty(me.email) && me.email.contains("@")) {
                                     String[] a = me.email.split("@", 2);
                                     etEmailLocal.setText(a[0]);
+                                    etEmailLocal.setEnabled(false); // 이메일 앞부분 수정 불가
                                     etEmailDomain.setText(a[1]);
-                                    etEmailDomain.setEnabled(false);
+                                    etEmailDomain.setEnabled(false); // 도메인 수정 불가
+                                    ddEmailDomain.setEnabled(false); // 드롭다운 비활성화
                                 }
-                                etName.setEnabled(false);
-                                tilEmailLocal.setEnabled(false);
-                                tilEmailDomain.setEnabled(false);
-                                tilEmailDomainDD.setEnabled(false);
                             }
                         }
-                        @Override public void onFailure(Call<ApiService.UserResponse> call, Throwable t) {}
+                        @Override public void onFailure(Call<ApiService.UserResponse> call, Throwable t) { /* no-op */ }
                     });
         }
     }
@@ -230,7 +237,7 @@ public class InquiryComposeActivity extends AppCompatActivity {
 
         String xUserId = meUserid;
         String xRole   = meRole;
-        String xEmail  = email; // 항상 서버로 전달
+        String xEmail  = email;
 
         RequestBody rbTitle    = toText(title);
         RequestBody rbContent  = toText(content);

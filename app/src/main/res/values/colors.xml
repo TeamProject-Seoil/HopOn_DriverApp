@@ -17,4 +17,8 @@
     <color name="cong_free_green">#2E7D32</color>     <!-- 여유 -->
     <color name="cong_medium_yellow">#F9A825</color> <!-- 보통 -->
     <color name="cong_busy_red">#D32F2F</color> <!-- 혼잡,매우혼잡 -->
+
+    <color name="colorLogout">#D32F2F</color>
+    <color name="colorOnLogout">#FFFFFF</color>
+    <color name="colorTextSecondary">#6B6B6B</color>
 </resources>
