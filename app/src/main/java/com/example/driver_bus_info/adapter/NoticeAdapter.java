@@ -28,7 +28,7 @@ import java.util.Set;
 public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.VH> {
 
     public interface OnItemToggle {
-        void onToggle(ApiService.NoticeResp item, boolean expanded);
+        void onToggle(ApiService.NoticeResp item, boolean expanded, int adapterPosition);
     }
 
     private OnItemToggle toggleListener;
@@ -43,6 +43,36 @@ public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.VH> {
         if (clear) { items.clear(); expandedIds.clear(); }
         if (list != null) items.addAll(list);
         notifyDataSetChanged();
+    }
+
+    /** 공통 읽음 판정: readAt → unread → read 순서로 평가 */
+    public static boolean isRead(ApiService.NoticeResp n) {
+        if (n == null) return false;
+        if (n.readAt != null && !n.readAt.isEmpty()) return true;
+        if (n.unread != null) return !n.unread;
+        if (n.read != null)   return n.read;
+        return false;
+    }
+
+    /** 읽음 상태 갱신(목록도 즉시 반영) */
+    public void setItemRead(long id, boolean read) {
+        for (int i = 0; i < items.size(); i++) {
+            ApiService.NoticeResp n = items.get(i);
+            if (n != null && n.id != null && n.id == id) {
+                n.read   = read;
+                n.unread = !read;
+                if (read) n.readAt = (n.readAt == null) ? "now" : n.readAt; // 표기용 더미 타임스탬프
+                notifyItemChanged(i);
+                break;
+            }
+        }
+    }
+
+    /** 현재 리스트에서 position 항목 제거 (안읽음 탭에서 읽음 처리 시 즉시 제거용) */
+    public void removeAt(int position) {
+        if (position < 0 || position >= items.size()) return;
+        items.remove(position);
+        notifyItemRemoved(position);
     }
 
     @Override public long getItemId(int position) {
@@ -67,6 +97,13 @@ public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.VH> {
         h.badge.setText(mapTypeLabel(n.noticeType));
         h.date.setText(formatDateDot(n.createdAt));
         h.viewCount.setText("조회수 " + formatCount(n.viewCount));
+
+        // 읽음/안읽음 비주얼 (공통 판정 사용)
+        boolean read = isRead(n);
+        h.readDot.setVisibility(read ? View.INVISIBLE : View.VISIBLE);
+        h.title.setTextColor(read ? 0xFF222222 : 0xFF111111);
+        h.title.setTypeface(h.title.getTypeface(),
+                read ? android.graphics.Typeface.NORMAL : android.graphics.Typeface.BOLD);
 
         @ColorInt int selectedBg = 0xFFE8F0FE;
         @ColorInt int white = 0xFFFFFFFF;
@@ -110,7 +147,7 @@ public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.VH> {
             }
 
             if (toggleListener != null && nowOpen) {
-                toggleListener.onToggle(cur, true);
+                toggleListener.onToggle(cur, true, p);
             }
         });
     }
@@ -120,6 +157,7 @@ public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.VH> {
     static class VH extends RecyclerView.ViewHolder {
         CardView card;
         View container, header;
+        View readDot;
         TextView badge, title, date, viewCount, content;
         ImageView arrow;
         VH(@NonNull View v) {
@@ -127,6 +165,7 @@ public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.VH> {
             card = (CardView) v;
             container = v.findViewById(R.id.container);
             header = v.findViewById(R.id.header);
+            readDot = v.findViewById(R.id.read_dot);
             badge = v.findViewById(R.id.badge);
             title = v.findViewById(R.id.title);
             date  = v.findViewById(R.id.date);
@@ -146,18 +185,13 @@ public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.VH> {
 
     private static String s(String x) { return x == null ? "" : x; }
 
-    // ✅ Java 11 호환: 전통 switch 문으로 변경
     private static String mapTypeLabel(String type) {
         if (type == null) return "공지";
         switch (type) {
-            case "INFO":
-                return "공지";
-            case "UPDATE":
-                return "업데이트";
-            case "MAINTENANCE":
-                return "점검";
-            default:
-                return "공지";
+            case "INFO": return "공지";
+            case "UPDATE": return "업데이트";
+            case "MAINTENANCE": return "점검";
+            default: return "공지";
         }
     }
 

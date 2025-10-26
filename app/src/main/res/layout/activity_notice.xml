@@ -12,7 +12,7 @@
         android:layout_height="match_parent"
         android:background="@android:color/white">
 
-        <!-- 헤더(그라데이션 제거/심플) -->
+        <!-- 헤더 -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="104dp"
@@ -59,7 +59,7 @@
             </LinearLayout>
         </RelativeLayout>
 
-        <!-- 유형 필터 바 -->
+        <!-- 1차 필터: 유형 -->
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -73,7 +73,6 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
-                <!-- 기본 선택: 전체(0) — 런타임에 수치 갱신 -->
                 <Button
                     android:id="@+id/btn_all"
                     android:layout_width="wrap_content"
@@ -91,7 +90,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="36dp"
                     android:background="@drawable/bg_filter_white"
-                    android:text="공지"
+                    android:text="공지(0)"
                     android:textColor="#222222"
                     android:minWidth="72dp"
                     android:paddingHorizontal="14dp"/>
@@ -103,7 +102,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="36dp"
                     android:background="@drawable/bg_filter_white"
-                    android:text="업데이트"
+                    android:text="업데이트(0)"
                     android:textColor="#222222"
                     android:minWidth="72dp"
                     android:paddingHorizontal="14dp"/>
@@ -115,14 +114,66 @@
                     android:layout_width="wrap_content"
                     android:layout_height="36dp"
                     android:background="@drawable/bg_filter_white"
-                    android:text="점검"
+                    android:text="점검(0)"
                     android:textColor="#222222"
                     android:minWidth="72dp"
                     android:paddingHorizontal="14dp"/>
             </LinearLayout>
         </HorizontalScrollView>
 
-        <!-- 공지 카드 리스트 -->
+        <!-- 2차 필터: 읽음/안읽음 -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/white"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="8dp"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:id="@+id/read_filter_bar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_read_all"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:background="@drawable/bg_filter_blue_soft"
+                    android:text="전체(0)"
+                    android:textColor="#1A73E8"
+                    android:minWidth="72dp"
+                    android:paddingHorizontal="14dp"/>
+
+                <Space android:layout_width="8dp" android:layout_height="1dp"/>
+
+                <Button
+                    android:id="@+id/btn_read_only"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:background="@drawable/bg_filter_white"
+                    android:text="읽음(0)"
+                    android:textColor="#222222"
+                    android:minWidth="72dp"
+                    android:paddingHorizontal="14dp"/>
+
+                <Space android:layout_width="8dp" android:layout_height="1dp"/>
+
+                <Button
+                    android:id="@+id/btn_unread_only"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:background="@drawable/bg_filter_white"
+                    android:text="안읽음(0)"
+                    android:textColor="#222222"
+                    android:minWidth="72dp"
+                    android:paddingHorizontal="14dp"/>
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <!-- 리스트 -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler"
             android:layout_width="match_parent"

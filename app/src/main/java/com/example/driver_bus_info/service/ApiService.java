@@ -20,8 +20,6 @@ import retrofit2.http.*;
 /**
  * Retrofit2 API 정의 (통합판)
  * - 버스/인증/회원/예약/면허 + 공지/문의
- * - 공통 헤더(X-Client-Type, Authorization 기본) 는 ApiClient 인터셉터에서 자동 부착 가능하지만,
- *   현재 액티비티 코드에서 clientType을 개별 전달하므로, 필요한 엔드포인트에 명시적으로 파라미터를 둔다.
  */
 public interface ApiService {
 
@@ -177,7 +175,7 @@ public interface ApiService {
     Call<Map<String, Object>> deleteMyDriverLicense(@Header("Authorization") String bearer);
 
     // =========================================================
-    // =============== 공통 Page 응답 (공지/문의에 사용) =========
+    // =============== 공통 Page 응답 (공지/문의) ================
     // =========================================================
     class PageResponse<T> {
         public List<T> content;
@@ -194,12 +192,17 @@ public interface ApiService {
         public String title, content, noticeType, targetRole;
         public long viewCount;
         public String createdAt, updatedAt;
+
+        // 서버가 어떤 형태로 보내도 대응 (read/unread/readAt)
+        @SerializedName(value = "read",   alternate = {"isRead"})
+        public Boolean read;
+        @SerializedName(value = "unread", alternate = {"isUnread"})
+        public Boolean unread;
+        @SerializedName(value = "readAt", alternate = {"read_at"})
+        public String readAt;
     }
 
-    /**
-     * 공지 목록
-     * (필요 시 인터셉터로 Authorization 자동 부착. 여기서는 파라미터 없이 사용)
-     */
+    /** 공지 목록 */
     @GET("/api/notices")
     Call<PageResponse<NoticeResp>> getNotices(@Query("page") int page,
                                               @Query("size") int size,
@@ -207,13 +210,13 @@ public interface ApiService {
                                               @Query("q") String q,
                                               @Query("type") String type);
 
-    /** 공지 상세 (increase=true면 조회수 +1, markRead=true면 사용자 기준 읽음 처리) */
+    /** 공지 상세 (increase=true면 조회수 +1) */
     @GET("/api/notices/{id}")
     Call<NoticeResp> getNoticeDetail(@Header("Authorization") String bearer,
                                      @Path("id") Long id,
                                      @Query("increase") boolean increase);
 
-    // ★ 전용 읽음 처리 호출
+    /** 읽음 처리(로그인 필요) */
     @POST("/api/notices/{id}/read")
     Call<Void> markNoticeRead(@Header("Authorization") String bearer,
                               @Path("id") Long id);

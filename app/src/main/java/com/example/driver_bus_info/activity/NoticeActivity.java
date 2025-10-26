@@ -19,6 +19,10 @@ import com.example.driver_bus_info.core.TokenManager;
 import com.example.driver_bus_info.service.ApiClient;
 import com.example.driver_bus_info.service.ApiService;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -28,6 +32,9 @@ public class NoticeActivity extends AppCompatActivity {
 
     private ImageButton backBtn;
     private Button btnAll, btnInfo, btnUpdate, btnMaint;
+    // 2차 필터(읽음)
+    private Button btnReadAll, btnReadOnly, btnUnreadOnly;
+
     private RecyclerView recycler;
     private androidx.swiperefreshlayout.widget.SwipeRefreshLayout swipe;
 
@@ -35,10 +42,13 @@ public class NoticeActivity extends AppCompatActivity {
     private ApiService api;
 
     @Nullable private String currentType = null; // null=전체
+    @Nullable private Boolean readFilter = null; // null=전체, true=읽음, false=안읽음
+
     private int page = 0, size = 20;
     private boolean loading = false, last = false;
 
     private long countAll = 0L, countInfo = 0L, countUpdate = 0L, countMaint = 0L;
+    private long unreadTotal = 0L; // 전체 안읽음 수(역할 기준). 읽음 수는 countAll - unreadTotal.
 
     private TokenManager tm;
 
@@ -55,6 +65,11 @@ public class NoticeActivity extends AppCompatActivity {
         btnInfo   = findViewById(R.id.btn_info);
         btnUpdate = findViewById(R.id.btn_update);
         btnMaint  = findViewById(R.id.btn_maint);
+
+        btnReadAll    = findViewById(R.id.btn_read_all);
+        btnReadOnly   = findViewById(R.id.btn_read_only);
+        btnUnreadOnly = findViewById(R.id.btn_unread_only);
+
         recycler  = findViewById(R.id.recycler);
         swipe     = findViewById(R.id.swipe);
 
@@ -67,9 +82,8 @@ public class NoticeActivity extends AppCompatActivity {
         recycler.setItemAnimator(animator);
         recycler.setAdapter(adapter);
 
-        // 카드 펼칠 때 상세 조회 + 읽음 처리 (increase=true, markRead=true)
-        // 카드 펼칠 때 상세 조회 + 읽음 처리
-        adapter.setOnItemToggle((notice, expanded) -> {
+        // 카드 펼칠 때: 읽음 처리 → 상세조회(뷰카운트) → UI갱신
+        adapter.setOnItemToggle((notice, expanded, pos) -> {
             if (!expanded) return;
 
             String bearer = buildBearer();
@@ -78,33 +92,48 @@ public class NoticeActivity extends AppCompatActivity {
                 return;
             }
 
-            // 1) 읽음 처리 (POST /read)
             api.markNoticeRead(bearer, notice.id).enqueue(new Callback<Void>() {
                 @Override public void onResponse(Call<Void> call, Response<Void> resp) {
-                    // 읽음 처리 성공/실패와 관계없이 상세는 조회수 증가 위해 호출
-                    // 2) 상세 조회 (increase=true, markRead 제거)
+                    // 1) UI에서 즉시 읽음 상태 반영
+                    adapter.setItemRead(notice.id, true);
+
+                    // 2) 현재 2차 필터가 '안읽음'이면 리스트에서 바로 제거
+                    if (Boolean.FALSE.equals(readFilter)) {
+                        adapter.removeAt(pos);
+                        if (!last && !loading) { loadNextPage(); }
+                    }
+
+                    // 3) 조회수 증가 호출
                     api.getNoticeDetail(bearer, notice.id, true)
                             .enqueue(new Callback<ApiService.NoticeResp>() {
-                                @Override public void onResponse(Call<ApiService.NoticeResp> call, Response<ApiService.NoticeResp> r) { /* no-op */ }
-                                @Override public void onFailure (Call<ApiService.NoticeResp> call, Throwable t) { /* no-op */ }
+                                @Override public void onResponse(Call<ApiService.NoticeResp> call, Response<ApiService.NoticeResp> r) { }
+                                @Override public void onFailure (Call<ApiService.NoticeResp> call, Throwable t) { }
                             });
+
+                    // 4) 상단 안읽음 카운트 갱신
+                    refreshUnreadCountOnly();
                 }
+
                 @Override public void onFailure(Call<Void> call, Throwable t) {
-                    // 실패해도 상세 호출은 진행(뷰카운트 반영)
                     api.getNoticeDetail(bearer, notice.id, true)
                             .enqueue(new Callback<ApiService.NoticeResp>() {
-                                @Override public void onResponse(Call<ApiService.NoticeResp> call, Response<ApiService.NoticeResp> r) { /* no-op */ }
-                                @Override public void onFailure (Call<ApiService.NoticeResp> call, Throwable tt) { /* no-op */ }
+                                @Override public void onResponse(Call<ApiService.NoticeResp> call, Response<ApiService.NoticeResp> r) { }
+                                @Override public void onFailure (Call<ApiService.NoticeResp> call, Throwable tt) { }
                             });
                 }
             });
         });
 
-
+        // 1차 필터(유형)
         btnAll.setOnClickListener(v -> selectType(null));
         btnInfo.setOnClickListener(v -> selectType("INFO"));
         btnUpdate.setOnClickListener(v -> selectType("UPDATE"));
         btnMaint.setOnClickListener(v -> selectType("MAINTENANCE"));
+
+        // 2차 필터(읽음)
+        btnReadAll.setOnClickListener(v -> { selectReadFilter(null); });
+        btnReadOnly.setOnClickListener(v -> { selectReadFilter(Boolean.TRUE); });
+        btnUnreadOnly.setOnClickListener(v -> { selectReadFilter(Boolean.FALSE); });
 
         swipe.setOnRefreshListener(() -> {
             refreshCounts();
@@ -126,9 +155,11 @@ public class NoticeActivity extends AppCompatActivity {
 
         updateFilterButtonTexts();
         styleFilterButtons();
+        styleReadFilterButtons();
 
         refreshCounts();
         selectType(null);
+        selectReadFilter(null);
     }
 
     private String buildBearer() {
@@ -143,11 +174,22 @@ public class NoticeActivity extends AppCompatActivity {
         reloadFirstPage();
     }
 
+    private void selectReadFilter(@Nullable Boolean rf) {
+        readFilter = rf; // null=전체, true=읽음, false=안읽음
+        styleReadFilterButtons();
+        reloadFirstPage();
+    }
+
     private void updateFilterButtonTexts() {
         btnAll.setText("전체(" + countAll + ")");
         btnInfo.setText("공지(" + countInfo + ")");
         btnUpdate.setText("업데이트(" + countUpdate + ")");
         btnMaint.setText("점검(" + countMaint + ")");
+
+        long readCnt = Math.max(0, countAll - unreadTotal);
+        btnReadAll.setText("전체(" + countAll + ")");
+        btnReadOnly.setText("읽음(" + readCnt + ")");
+        btnUnreadOnly.setText("안읽음(" + unreadTotal + ")");
     }
 
     private void styleFilterButtons() {
@@ -155,16 +197,29 @@ public class NoticeActivity extends AppCompatActivity {
         setBtnStyle(btnInfo,  "INFO".equals(currentType));
         setBtnStyle(btnUpdate,"UPDATE".equals(currentType));
         setBtnStyle(btnMaint, "MAINTENANCE".equals(currentType));
-        // Material tint 간섭 방지
         btnAll.setBackgroundTintList((ColorStateList) null);
         btnInfo.setBackgroundTintList((ColorStateList) null);
         btnUpdate.setBackgroundTintList((ColorStateList) null);
         btnMaint.setBackgroundTintList((ColorStateList) null);
     }
 
+    private void styleReadFilterButtons() {
+        setBtnStyleSoft(btnReadAll,    readFilter == null);
+        setBtnStyleSoft(btnReadOnly,   Boolean.TRUE.equals(readFilter));
+        setBtnStyleSoft(btnUnreadOnly, Boolean.FALSE.equals(readFilter));
+
+        btnReadAll.setBackgroundTintList((ColorStateList) null);
+        btnReadOnly.setBackgroundTintList((ColorStateList) null);
+        btnUnreadOnly.setBackgroundTintList((ColorStateList) null);
+    }
+
     private void setBtnStyle(Button b, boolean on) {
         if (on) { b.setBackgroundResource(R.drawable.bg_filter_blue); b.setTextColor(0xFF1A73E8); }
         else    { b.setBackgroundResource(R.drawable.bg_filter_white); b.setTextColor(0xFF222222); }
+    }
+    private void setBtnStyleSoft(Button b, boolean on) {
+        if (on) { b.setBackgroundResource(R.drawable.bg_filter_blue_soft); b.setTextColor(0xFF1A73E8); }
+        else    { b.setBackgroundResource(R.drawable.bg_filter_white);     b.setTextColor(0xFF222222); }
     }
 
     private void reloadFirstPage() { page = 0; last = false; requestPage(true); }
@@ -176,7 +231,7 @@ public class NoticeActivity extends AppCompatActivity {
         if (clear && !swipe.isRefreshing()) swipe.setRefreshing(true);
 
         final String sort = "updatedAt,desc";
-        final String q    = null; // 검색어 쓰면 여기에 바인딩
+        final String q    = null; // 검색어
         final String type = currentType; // INFO/UPDATE/MAINTENANCE 또는 null
 
         api.getNotices(page, size, sort, q, type)
@@ -191,7 +246,19 @@ public class NoticeActivity extends AppCompatActivity {
                             return;
                         }
                         ApiService.PageResponse<ApiService.NoticeResp> body = resp.body();
-                        adapter.setData(body.content, clear);
+
+                        // 2차 필터(읽음/안읽음) — 공통 isRead()로 후처리
+                        List<ApiService.NoticeResp> display = body.content;
+                        if (readFilter != null && display != null) {
+                            List<ApiService.NoticeResp> filtered = new ArrayList<>();
+                            for (ApiService.NoticeResp n : display) {
+                                boolean r = NoticeAdapter.isRead(n);
+                                if (readFilter.equals(r)) filtered.add(n);
+                            }
+                            display = filtered;
+                        }
+
+                        adapter.setData(display, clear);
                         last = body.last;
                     }
 
@@ -204,7 +271,7 @@ public class NoticeActivity extends AppCompatActivity {
                 });
     }
 
-    /** 각 유형별 전체 개수(서버 totalElements 이용) */
+    /** 각 유형별 전체 개수 + 전체 안읽음 개수 */
     private void refreshCounts() {
         final String sort = "updatedAt,desc";
         final String q    = null;
@@ -217,6 +284,29 @@ public class NoticeActivity extends AppCompatActivity {
                 .enqueue(new CountCb(v -> { countUpdate = v; updateFilterButtonTexts(); }));
         api.getNotices(0, 1, sort, q, "MAINTENANCE")
                 .enqueue(new CountCb(v -> { countMaint = v; updateFilterButtonTexts(); }));
+
+        refreshUnreadCountOnly();
+    }
+
+    private void refreshUnreadCountOnly() {
+        String bearer = buildBearer();
+        if (bearer == null) { unreadTotal = 0L; updateFilterButtonTexts(); return; }
+        api.getUnreadNoticeCount(bearer).enqueue(new Callback<Map<String, Integer>>() {
+            @Override public void onResponse(Call<Map<String, Integer>> call, Response<Map<String, Integer>> res) {
+                if (res.isSuccessful() && res.body() != null) {
+                    Integer c = res.body().get("count");
+                    if (c == null) c = res.body().get("unreadCount");
+                    unreadTotal = c == null ? 0L : c.longValue();
+                } else {
+                    unreadTotal = 0L;
+                }
+                updateFilterButtonTexts();
+            }
+            @Override public void onFailure(Call<Map<String, Integer>> call, Throwable t) {
+                unreadTotal = 0L;
+                updateFilterButtonTexts();
+            }
+        });
     }
 
     private static class CountCb implements Callback<ApiService.PageResponse<ApiService.NoticeResp>> {

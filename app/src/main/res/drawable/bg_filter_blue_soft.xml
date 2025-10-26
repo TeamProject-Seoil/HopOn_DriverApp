@@ -1,0 +1,5 @@
+<!-- res/drawable/bg_filter_blue_soft.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#E8F0FE"/>
+    <corners android:radius="20dp"/>
+</shape>
