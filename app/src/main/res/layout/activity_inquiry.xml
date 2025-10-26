@@ -41,7 +41,7 @@
                 android:textStyle="bold"/>
         </RelativeLayout>
 
-        <!-- 필터 바 -->
+        <!-- 필터 탭 -->
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -80,14 +80,28 @@
                     style="@style/FilterButton"
                     android:text="종료(0)"
                     android:layout_marginEnd="8dp"/>
-
-                <Button
-                    android:id="@+id/btn_mine"
-                    style="@style/FilterButton"
-                    android:text="내 문의만: 끔"
-                    android:visibility="gone"/>
             </LinearLayout>
         </HorizontalScrollView>
+
+        <!-- 내 문의만: 탭 아래, 왼쪽 정렬 -->
+        <LinearLayout
+            android:id="@+id/row_mine"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="4dp"
+            android:gravity="start"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btn_mine"
+                style="@style/FilterButton"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="내 문의만: 끔"
+                android:paddingHorizontal="16dp"/>
+        </LinearLayout>
 
         <!-- 비로그인 안내 -->
         <LinearLayout
@@ -96,14 +110,14 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="16dp"
-            android:paddingTop="24dp"
+            android:paddingTop="8dp"
             android:paddingBottom="8dp"
             android:visibility="gone">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="로그인 시 내 문의 목록을 확인할 수 있습니다."
+                android:text="로그인 시 내 문의의 목록을 확인할 수 있습니다."
                 android:textColor="#666666"
                 android:textSize="14sp"/>
         </LinearLayout>

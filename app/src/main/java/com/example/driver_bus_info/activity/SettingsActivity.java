@@ -248,7 +248,7 @@ public class SettingsActivity extends AppCompatActivity {
     private void showLogoutDialog() {
         final Dialog dialog = new Dialog(this, R.style.CenterDialog);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        dialog.setContentView(R.layout.dialog_logout_center);
+        dialog.setContentView(R.layout.dialog_confirm_logout);
 
         Window window = dialog.getWindow();
         if (window != null) {

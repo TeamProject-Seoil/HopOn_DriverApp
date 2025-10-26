@@ -141,6 +141,25 @@
                 android:text="첨부 0개 · 답변 0개"
                 android:textColor="#666666"
                 android:textSize="12sp"/>
+
+            <!-- ▼ 답변 미리보기 컨테이너 -->
+            <LinearLayout
+                android:id="@+id/replies_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="8dp" />
+
+            <!-- (선택) 답변이 없을 때 표시 -->
+            <TextView
+                android:id="@+id/replies_empty"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="등록된 답변이 없습니다."
+                android:textColor="#9E9E9E"
+                android:textSize="12sp"
+                android:layout_marginTop="6dp"
+                android:visibility="gone" />
         </LinearLayout>
     </LinearLayout>
 </androidx.cardview.widget.CardView>

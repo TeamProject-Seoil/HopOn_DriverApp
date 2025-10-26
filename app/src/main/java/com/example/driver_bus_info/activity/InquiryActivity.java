@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
@@ -17,10 +18,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.driver_bus_info.R;
 import com.example.driver_bus_info.adapter.InquiryAdapter;
+import com.example.driver_bus_info.core.TokenManager;           // ✅ TokenManager 사용
 import com.example.driver_bus_info.service.ApiClient;
 import com.example.driver_bus_info.service.ApiService;
 import com.example.driver_bus_info.util.DeviceInfo;
-import com.example.driver_bus_info.util.TokenStore;
 
 import java.util.Collections;
 
@@ -28,7 +29,6 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-/** 공개 목록(비로그인 가능, 비밀글만 잠금) + 내 문의만 보기 토글 */
 public class InquiryActivity extends AppCompatActivity {
 
     private ImageButton btnBack;
@@ -36,22 +36,22 @@ public class InquiryActivity extends AppCompatActivity {
     private RecyclerView recycler;
     private androidx.swiperefreshlayout.widget.SwipeRefreshLayout swipe;
     private LinearLayout viewLoginHint;
+    private LinearLayout rowMine;
 
     private InquiryAdapter adapter;
 
+    private TokenManager tm;                          // ✅
     @Nullable private String userId = null;
     @Nullable private String email  = null;
     @Nullable private String role   = null;
     @Nullable private String bearer = null;
     private String clientType;
 
-    @Nullable private String curStatus = null; // null=전체, OPEN|ANSWERED|CLOSED
+    @Nullable private String curStatus = null;
     private int page = 0, size = 20;
     private boolean loading = false, last = false;
 
     private long countAll=0, countOpen=0, countAnswered=0, countClosed=0;
-
-    /** true=내 문의만 보기, false=공개 목록 */
     private boolean mineOnly = false;
 
     @Override
@@ -59,17 +59,19 @@ public class InquiryActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_inquiry);
 
-        btnBack      = findViewById(R.id.btn_back);
-        btnAll       = findViewById(R.id.btn_all);
-        btnOpen      = findViewById(R.id.btn_open);
-        btnAnswered  = findViewById(R.id.btn_answered);
-        btnClosed    = findViewById(R.id.btn_closed);
-        btnMineToggle= findViewById(R.id.btn_mine);
-        btnWrite     = findViewById(R.id.btn_write);
-        recycler     = findViewById(R.id.recycler);
-        swipe        = findViewById(R.id.swipe);
-        viewLoginHint= findViewById(R.id.view_login_hint);
+        btnBack       = findViewById(R.id.btn_back);
+        btnAll        = findViewById(R.id.btn_all);
+        btnOpen       = findViewById(R.id.btn_open);
+        btnAnswered   = findViewById(R.id.btn_answered);
+        btnClosed     = findViewById(R.id.btn_closed);
+        btnMineToggle = findViewById(R.id.btn_mine);
+        btnWrite      = findViewById(R.id.btn_write);
+        recycler      = findViewById(R.id.recycler);
+        swipe         = findViewById(R.id.swipe);
+        viewLoginHint = findViewById(R.id.view_login_hint);
+        rowMine       = findViewById(R.id.row_mine);
 
+        tm = TokenManager.get(this);                  // ✅ 통일
         clientType = DeviceInfo.getClientType();
 
         btnBack.setOnClickListener(v -> finish());
@@ -77,15 +79,6 @@ public class InquiryActivity extends AppCompatActivity {
         adapter = new InquiryAdapter();
         recycler.setLayoutManager(new LinearLayoutManager(this));
         recycler.setAdapter(adapter);
-
-        // 카운트 콜백 연결
-        adapter.setOnCountsChangeListener(c -> {
-            countAll      = c.all;
-            countOpen     = c.open;
-            countAnswered = c.answered;
-            countClosed   = c.closed;
-            applyFilterButtonText();
-        });
 
         btnAll.setOnClickListener(v -> selectStatus(null));
         btnOpen.setOnClickListener(v -> selectStatus("OPEN"));
@@ -132,62 +125,77 @@ public class InquiryActivity extends AppCompatActivity {
         reloadFirst();
     }
 
+    /** 로그인 여부/유저 정보 초기화 */
     private void initByAuth() {
-        String access = TokenStore.getAccess();
+        String access = tm.accessToken();                 // ✅ TokenManager에서 읽기
         if (TextUtils.isEmpty(access)) {
+            // 비로그인
             bearer = null;
             userId = email = role = null;
             mineOnly = false;
 
             adapter.setPublicMode(true);
-            btnMineToggle.setVisibility(Button.GONE);
-            recycler.setVisibility(android.view.View.VISIBLE);
-            viewLoginHint.setVisibility(android.view.View.VISIBLE);
+
+            if (rowMine != null) rowMine.setVisibility(View.GONE);
+            btnMineToggle.setVisibility(View.GONE);
+            viewLoginHint.setVisibility(View.VISIBLE);
 
             refreshCountsPublic();
             selectStatus(null);
-        } else {
-            bearer = TokenStore.bearerOrNull(this);
-            ApiClient.get(getApplicationContext())
-                    .me(bearer, clientType)
-                    .enqueue(new Callback<ApiService.UserResponse>() {
-                        @Override public void onResponse(Call<ApiService.UserResponse> call, Response<ApiService.UserResponse> res) {
-                            if (!res.isSuccessful() || res.body()==null) {
-                                bearer = null;
-                                userId = email = role = null;
-                                mineOnly = false;
-                                adapter.setPublicMode(true);
-                                btnMineToggle.setVisibility(Button.GONE);
-                                viewLoginHint.setVisibility(android.view.View.VISIBLE);
-                                refreshCountsPublic();
-                                selectStatus(null);
-                                return;
-                            }
-                            ApiService.UserResponse me = res.body();
-                            userId = me.userid; email = me.email; role = me.role;
+            return;
+        }
 
-                            btnMineToggle.setVisibility(Button.VISIBLE);
-                            viewLoginHint.setVisibility(android.view.View.GONE);
+        bearer = (tm.tokenType() != null ? tm.tokenType() : "Bearer") + " " + access;
 
-                            adapter.setPublicMode(!mineOnly);
-                            if (mineOnly) refreshCounts(); else refreshCountsPublic();
-                            selectStatus(null);
-                        }
-                        @Override public void onFailure(Call<ApiService.UserResponse> call, Throwable t) {
+        ApiClient.get(getApplicationContext())
+                .me(bearer, clientType)
+                .enqueue(new Callback<ApiService.UserResponse>() {
+                    @Override public void onResponse(Call<ApiService.UserResponse> call, Response<ApiService.UserResponse> res) {
+                        if (!res.isSuccessful() || res.body()==null) {
+                            // 실패 → 비로그인 UI
                             bearer = null;
                             userId = email = role = null;
                             mineOnly = false;
                             adapter.setPublicMode(true);
-                            btnMineToggle.setVisibility(Button.GONE);
-                            viewLoginHint.setVisibility(android.view.View.VISIBLE);
+
+                            if (rowMine != null) rowMine.setVisibility(View.GONE);
+                            btnMineToggle.setVisibility(View.GONE);
+                            viewLoginHint.setVisibility(View.VISIBLE);
+
                             refreshCountsPublic();
                             selectStatus(null);
+                            return;
                         }
-                    });
-        }
+
+                        // 로그인 성공 → 버튼/행 노출
+                        ApiService.UserResponse me = res.body();
+                        userId = me.userid; email = me.email; role = me.role;
+
+                        if (rowMine != null) rowMine.setVisibility(View.VISIBLE);
+                        btnMineToggle.setVisibility(View.VISIBLE);
+                        viewLoginHint.setVisibility(View.GONE);
+
+                        adapter.setPublicMode(!mineOnly);
+                        if (mineOnly) refreshCounts(); else refreshCountsPublic();
+                        selectStatus(null);
+                    }
+                    @Override public void onFailure(Call<ApiService.UserResponse> call, Throwable t) {
+                        bearer = null;
+                        userId = email = role = null;
+                        mineOnly = false;
+                        adapter.setPublicMode(true);
+
+                        if (rowMine != null) rowMine.setVisibility(View.GONE);
+                        btnMineToggle.setVisibility(View.GONE);
+                        viewLoginHint.setVisibility(View.VISIBLE);
+
+                        refreshCountsPublic();
+                        selectStatus(null);
+                    }
+                });
     }
 
-    /** 로그인 사용자(내 글) 카운트 */
+    /** 카운트들 */
     private void refreshCounts() {
         if (bearer == null) { refreshCountsPublic(); return; }
         ApiClient.get(getApplicationContext())
@@ -204,7 +212,6 @@ public class InquiryActivity extends AppCompatActivity {
                 .enqueue(new CountCb(v -> { countClosed = v; applyFilterButtonText(); }));
     }
 
-    /** 비로그인(공개 목록) 카운트 */
     private void refreshCountsPublic() {
         ApiClient.get(getApplicationContext())
                 .getPublicInquiries(0, 1, "createdAt,desc", null, null)

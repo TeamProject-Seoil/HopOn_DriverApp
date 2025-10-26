@@ -20,6 +20,26 @@
         <item name="android:windowExitAnimation">@android:anim/fade_out</item>
     </style>
 
+    <!-- 둥근(필) 모양 오버레이 -->
+    <style name="Shape.Pill" parent="@style/ShapeAppearance.Material3.SmallComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">999dp</item>
+    </style>
+
+    <!-- 빨간 필 버튼 공통 -->
+    <style name="Widget.App.RedFilledButton" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/colorLogout</item>
+        <item name="android:textColor">@color/colorOnLogout</item>
+        <item name="iconTint">@color/colorOnLogout</item>
+        <item name="shapeAppearanceOverlay">@style/Shape.Pill</item>
+        <item name="rippleColor">@android:color/white</item>
+    </style>
+
+    <!-- 아웃라인 버튼 공통 -->
+    <style name="Widget.App.OutlinedPillButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="shapeAppearanceOverlay">@style/Shape.Pill</item>
+    </style>
+
     <style name="FilterButton">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">36dp</item>
