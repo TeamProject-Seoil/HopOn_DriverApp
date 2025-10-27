@@ -12,6 +12,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -116,6 +117,14 @@ public class MainActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() { confirmExit(); }
         });
+
+        // 운행 시작 버튼 클릭 시 bus_list 화면으로 이동
+        Button btnDriveStart = findViewById(R.id.drive_start);
+        btnDriveStart.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, BusListActivity.class);
+            startActivity(intent);
+        });
+
     }
 
     @Override
