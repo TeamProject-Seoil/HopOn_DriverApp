@@ -7,4 +7,5 @@
     </style>
 
     <style name="Theme.Driver_bus_info" parent="Base.Theme.Driver_bus_info" />
+    <style name="Theme.App" parent="Theme.Material3.Light.NoActionBar" />
 </resources>
