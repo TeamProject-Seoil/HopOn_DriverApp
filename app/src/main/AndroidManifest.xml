@@ -114,8 +114,6 @@
             android:value="o5lcffxody"/>
 
         <!-- (선택) 런처 제거 예시: 필요하면 유지하되 MAIN/LAUNCHER는 삭제 -->
-        <activity
-            android:name=".start.StartLoding"
-            android:exported="true" />
+
     </application>
 </manifest>

@@ -6,152 +6,77 @@
     android:background="@drawable/popup_background"
     android:padding="0dp">
 
+    <!-- 타이틀 -->
     <TextView
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:background="#4DA3FF"
+        android:layout_height="52dp"
         android:gravity="center"
+        android:background="#4B93FF"
         android:text="새 등록"
         android:textColor="#FFFFFF"
         android:textSize="18sp"
         android:textStyle="bold" />
 
+    <!-- 내용 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="18dp">
 
-        <!-- 안내: 번호판만 필수 -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="※ 서버 등록은 '버스 차량번호(번호판)'만 필요합니다."
+            android:text="※ 서버 등록에는 ‘버스 차량번호(번호판)’만 필요합니다."
             android:textSize="12sp"
             android:textColor="#666666"
-            android:layout_marginBottom="8dp"/>
+            android:layout_marginBottom="10dp"/>
 
-        <!-- 버스 노선번호 (선택) -->
-        <LinearLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="8dp">
+            android:text="버스 차량번호"
+            android:textSize="16sp"
+            android:textColor="#333333"
+            android:textStyle="bold"
+            android:layout_marginBottom="6dp"/>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="버스 노선번호   "
-                android:textSize="16sp" />
-
-            <EditText
-                android:id="@+id/edit_route_number"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="예: 320 (선택)"
-                android:background="@drawable/edittext_background"
-                android:padding="8dp"
-                android:inputType="text" />
-        </LinearLayout>
-
-        <!-- 버스 차량번호 (필수: plateNo) -->
-        <LinearLayout
+        <EditText
+            android:id="@+id/edit_bus_number"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="8dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="버스 차량번호   "
-                android:textSize="16sp" />
-
-            <EditText
-                android:id="@+id/edit_bus_number"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="예: 서울71사2848 (필수)"
-                android:background="@drawable/edittext_background"
-                android:padding="8dp"
-                android:inputType="text" />
-        </LinearLayout>
-
-        <!-- 버스 노선명 (선택) -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="8dp">
-
-            <TextView
-                android:layout_width="104dp"
-                android:layout_height="wrap_content"
-                android:text="버스 노선  "
-                android:textSize="16sp" />
-
-            <EditText
-                android:id="@+id/edit_route"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="예: 복정환승센터 ↔ 면목역 (선택)"
-                android:background="@drawable/edittext_background"
-                android:padding="8dp"
-                android:inputType="text" />
-        </LinearLayout>
-
-        <!-- 저상 여부 (선택 / 서버 미사용) -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="버스 저상 여부  "
-                android:textSize="16sp" />
-
-            <CheckBox
-                android:id="@+id/check_low_floor"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
-        </LinearLayout>
+            android:layout_height="48dp"
+            android:hint="예: 서울71사2848"
+            android:background="@drawable/edittext_background"
+            android:paddingHorizontal="12dp"
+            android:inputType="text"
+            android:maxLength="30"/>
     </LinearLayout>
 
-    <!-- 버튼 영역 -->
+    <!-- 버튼 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:weightSum="2"
-        android:padding="8dp">
+        android:padding="12dp">
 
         <Button
             android:id="@+id/btn_cancel"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
             android:layout_weight="1"
             android:text="취소"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#BDBDBD" />
+            android:textColor="@android:color/white"
+            android:backgroundTint="#BDBDBD"/>
 
         <Button
             android:id="@+id/btn_register"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:text="등록"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#4DA3FF" />
+            android:textColor="@android:color/white"
+            android:backgroundTint="#4B93FF"/>
     </LinearLayout>
 </LinearLayout>

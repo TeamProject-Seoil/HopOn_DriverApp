@@ -406,4 +406,18 @@ public interface ApiService {
             @Header("X-Client-Type") String clientType,
             @Path("vehicleId") String vehicleId
     );
+
+    // ApiService.java 내부
+    class ArrivalNowResponse {
+        public String currentStopId;
+        public String currentStopName;
+        public String nextStopId;
+        public String nextStopName;
+        public Integer etaSec; // 선택: 다음정류장까지 남은 초
+    }
+
+    // 인터페이스
+    @GET("/api/driver/operations/arrival-now")
+    Call<ArrivalNowResponse> arrivalNow(@Header("Authorization") String bearer);
+
 }

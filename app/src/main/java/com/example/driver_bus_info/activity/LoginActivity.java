@@ -1,3 +1,4 @@
+// app/src/main/java/com/example/driver_bus_info/activity/LoginActivity.java
 package com.example.driver_bus_info.activity;
 
 import android.content.Intent;
@@ -19,6 +20,7 @@ import com.example.driver_bus_info.core.TokenManager;
 import com.example.driver_bus_info.service.ApiClient;
 import com.example.driver_bus_info.service.ApiService;
 import com.example.driver_bus_info.util.DeviceInfo;
+import com.example.driver_bus_info.util.Nav;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -35,7 +37,6 @@ public class LoginActivity extends AppCompatActivity {
 
     private TokenManager tm;
     private ApiService api;
-
     private String deviceId;
     private String clientType;
 
@@ -55,9 +56,8 @@ public class LoginActivity extends AppCompatActivity {
         textSignup        = findViewById(R.id.text_signup);
         buttonFindIdPw    = findViewById(R.id.button_find_idpw);
 
-        // 가운데 '문의' 버튼 이동
-        findViewById(R.id.btnGoInquiry).setOnClickListener(v ->
-                startActivity(new Intent(this, InquiryActivity.class)));
+        findViewById(R.id.btnGoInquiry).setOnClickListener(
+                v -> startActivity(new Intent(this, InquiryActivity.class)));
 
         tm  = TokenManager.get(this);
         api = ApiClient.get(this);
@@ -72,10 +72,8 @@ public class LoginActivity extends AppCompatActivity {
         tryAutoLoginIfPossible();
 
         loginButtonBack.setOnClickListener(v -> confirmExit());
-        textSignup.setOnClickListener(v ->
-                startActivity(new Intent(this, RegisterPicExActivity.class)));
-        buttonFindIdPw.setOnClickListener(v ->
-                startActivity(new Intent(this, FindAccountActivity.class)));
+        textSignup.setOnClickListener(v -> startActivity(new Intent(this, RegisterPicExActivity.class)));
+        buttonFindIdPw.setOnClickListener(v -> startActivity(new Intent(this, FindAccountActivity.class)));
         buttonLogin.setOnClickListener(v -> doLogin());
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
@@ -89,7 +87,6 @@ public class LoginActivity extends AppCompatActivity {
         if (savedRefresh == null || savedRefresh.isEmpty()) return;
 
         setUi(false, "자동 로그인 중...");
-
         refreshCall = api.refresh(savedRefresh, clientType, deviceId);
         refreshCall.enqueue(new Callback<ApiService.AuthResponse>() {
             @Override
@@ -100,15 +97,15 @@ public class LoginActivity extends AppCompatActivity {
                     if (a.refreshToken != null && !a.refreshToken.isEmpty()) {
                         tm.saveRefreshOnly(a.refreshToken);
                     }
-                    gotoMain();
+                    // ★ 로그인(자동) 성공 → 현재 운행 조회 후 라우팅
+                    routeToActiveOrMain();
                 } else {
                     tm.setAutoLogin(false);
                     tm.clearRefresh();
                     setUi(true, "로그인");
                 }
             }
-            @Override
-            public void onFailure(Call<ApiService.AuthResponse> call, Throwable t) {
+            @Override public void onFailure(Call<ApiService.AuthResponse> call, Throwable t) {
                 setUi(true, "로그인");
             }
         });
@@ -117,12 +114,10 @@ public class LoginActivity extends AppCompatActivity {
     private void doLogin() {
         String id = text(editTextId);
         String pw = text(editTextPassword);
-
         if (TextUtils.isEmpty(id) || TextUtils.isEmpty(pw)) {
             toast("아이디/비밀번호를 입력하세요");
             return;
         }
-
         setUi(false, "로그인 중...");
 
         ApiService.AuthRequest body = new ApiService.AuthRequest(id, pw, clientType, deviceId);
@@ -132,38 +127,47 @@ public class LoginActivity extends AppCompatActivity {
             public void onResponse(Call<ApiService.AuthResponse> call, Response<ApiService.AuthResponse> res) {
                 if (res.isSuccessful() && res.body() != null) {
                     ApiService.AuthResponse a = res.body();
-
                     boolean wantAuto = checkboxAutoLogin.isChecked();
                     tm.setAutoLogin(wantAuto);
-
                     if (wantAuto) {
                         tm.saveLogin(a.accessToken, a.refreshToken, a.tokenType, a.role);
                     } else {
                         tm.updateAccess(a.accessToken, a.tokenType);
                         tm.clearRefresh();
                     }
-
-                    gotoMain();
+                    // ★ 로그인 성공 → 현재 운행 조회 후 라우팅
+                    routeToActiveOrMain();
                 } else {
                     int code = res.code();
-                    if (code == 401) {
-                        toast("아이디 또는 비밀번호가 올바르지 않습니다.");
-                    } else if (code == 409) {
-                        toast("다른 기기에서 로그인 중입니다.");
-                    } else if (code == 403) {
-                        toast("앱 권한이 없습니다.");
-                    } else if (code == 423) {
-                        toast("계정이 잠겨있거나 승인 대기 중입니다.");
-                    } else {
-                        toast("로그인 실패 (" + code + ")");
-                    }
+                    if (code == 401) { toast("아이디 또는 비밀번호가 올바르지 않습니다."); }
+                    else if (code == 409) { toast("다른 기기에서 로그인 중입니다."); }
+                    else if (code == 403) { toast("앱 권한이 없습니다."); }
+                    else if (code == 423) { toast("계정이 잠겨있거나 승인 대기 중입니다."); }
+                    else { toast("로그인 실패 (" + code + ")"); }
                     setUi(true, "로그인");
                 }
             }
-            @Override
-            public void onFailure(Call<ApiService.AuthResponse> call, Throwable t) {
+            @Override public void onFailure(Call<ApiService.AuthResponse> call, Throwable t) {
                 toast("네트워크 오류: " + t.getMessage());
                 setUi(true, "로그인");
+            }
+        });
+    }
+
+    /** 현재 운행 조회 후 운행중이면 Driving으로, 아니면 Main으로 */
+    private void routeToActiveOrMain() {
+        api.getActiveOperation(null, "DRIVER_APP").enqueue(new Callback<ApiService.ActiveOperationResp>() {
+            @Override public void onResponse(Call<ApiService.ActiveOperationResp> call,
+                                             Response<ApiService.ActiveOperationResp> res) {
+                if (res.isSuccessful() && res.body()!=null && "RUNNING".equals(res.body().status)) {
+                    ApiService.ActiveOperationResp r = res.body();
+                    Nav.goDriving(LoginActivity.this, r.id, r.vehicleId, r.routeId, r.routeName);
+                } else {
+                    gotoMain();
+                }
+            }
+            @Override public void onFailure(Call<ApiService.ActiveOperationResp> call, Throwable t) {
+                gotoMain();
             }
         });
     }
@@ -193,18 +197,12 @@ public class LoginActivity extends AppCompatActivity {
         buttonLogin.setText(btnText);
     }
 
-    private String text(EditText e) {
-        return e.getText() == null ? "" : e.getText().toString().trim();
-    }
+    private String text(EditText e) { return e.getText() == null ? "" : e.getText().toString().trim(); }
+    private void toast(String s) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show(); }
 
-    private void toast(String s) {
-        Toast.makeText(this, s, Toast.LENGTH_SHORT).show();
-    }
-
-    @Override
-    protected void onDestroy() {
+    @Override protected void onDestroy() {
         if (refreshCall != null) refreshCall.cancel();
-        if (loginCall != null) loginCall.cancel();
+        if (loginCall != null)   loginCall.cancel();
         super.onDestroy();
     }
 }
