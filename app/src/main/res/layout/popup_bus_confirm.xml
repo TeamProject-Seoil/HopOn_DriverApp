@@ -6,7 +6,7 @@
     android:background="@drawable/popup_background"
     android:padding="0dp">
 
-    <!-- 제목 영역 -->
+    <!-- 제목 -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="52dp"
@@ -17,7 +17,7 @@
         android:textSize="18sp"
         android:textStyle="bold" />
 
-    <!-- 내용 영역 -->
+    <!-- 내용 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -26,7 +26,7 @@
         android:divider="@drawable/divider_line"
         android:showDividers="middle">
 
-        <!-- 버스 노선번호 -->
+        <!-- 노선번호 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -50,12 +50,12 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:background="@drawable/info_box_bg"
-                android:text="320"
+                android:text="-"
                 android:textColor="#111111"
                 android:textSize="16sp" />
         </LinearLayout>
 
-        <!-- 버스 차량번호 -->
+        <!-- 차량번호 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -79,12 +79,12 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:background="@drawable/info_box_bg"
-                android:text="서울 71사 2848"
+                android:text="-"
                 android:textColor="#111111"
                 android:textSize="16sp" />
         </LinearLayout>
 
-        <!-- 버스 노선 -->
+        <!-- 노선명 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -108,12 +108,12 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:background="@drawable/info_box_bg"
-                android:text="복정환승센터 방면"
+                android:text="-"
                 android:textColor="#111111"
                 android:textSize="16sp" />
         </LinearLayout>
 
-        <!-- 버스 저상 여부 -->
+        <!-- 차량 ID -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -125,35 +125,36 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="버스 저상 여부"
+                android:text="차량 ID"
                 android:textColor="#333333"
                 android:textSize="16sp"
                 android:textStyle="bold"/>
 
             <TextView
-                android:id="@+id/tvBusLowType"
+                android:id="@+id/tvVehicleIdConfirm"
                 android:layout_width="0dp"
                 android:layout_height="40dp"
                 android:layout_weight="1"
                 android:gravity="center"
                 android:background="@drawable/info_box_bg"
-                android:text="저상"
+                android:text="-"
                 android:textColor="#111111"
                 android:textSize="16sp" />
         </LinearLayout>
     </LinearLayout>
 
-    <!-- 안내 텍스트 -->
+    <!-- 안내 -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="4dp"
         android:gravity="center"
         android:text="해당 버스를 운행하시겠습니까?"
         android:textColor="#222222"
         android:textSize="16sp" />
 
-    <!-- 버튼 영역 -->
+    <!-- 버튼 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -185,5 +186,4 @@
             android:textStyle="bold"
             android:background="@drawable/btn_rounded_blue"/>
     </LinearLayout>
-
 </LinearLayout>

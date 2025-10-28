@@ -12,7 +12,7 @@
     <androidx.cardview.widget.CardView
         android:id="@+id/cardBusInfo"
         android:layout_width="0dp"
-        android:layout_height="200dp"
+        android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -37,67 +37,108 @@
 
             <!-- 내용 영역 -->
             <LinearLayout
+                android:id="@+id/llBusInfoBody"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:gravity="center_vertical"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 android:padding="20dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/colorBar">
+                app:layout_constraintTop_toBottomOf="@id/colorBar"
+                app:layout_constraintBottom_toBottomOf="parent">
 
-                <!-- 버스 아이콘 -->
-                <ImageView
-                    android:id="@+id/imgBusIcon"
-                    android:layout_width="72dp"
-                    android:layout_height="72dp"
-                    android:layout_marginEnd="16dp"
-                    android:contentDescription="Bus icon"
-                    android:src="@drawable/ic_bus" />
-
-                <!-- 오른쪽 텍스트 영역 -->
+                <!-- 상단 아이콘 + 텍스트 묶음 -->
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:gravity="center_vertical"
-                    android:orientation="vertical">
+                    android:orientation="horizontal">
 
-                    <!-- 버스 번호 -->
-                    <TextView
-                        android:id="@+id/tvBusNumber"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="271번 (저상)"
-                        android:textColor="#000000"
-                        android:textSize="30sp"
-                        android:textStyle="bold" />
+                    <!-- 버스 아이콘 -->
+                    <ImageView
+                        android:id="@+id/imgBusIcon"
+                        android:layout_width="72dp"
+                        android:layout_height="72dp"
+                        android:layout_marginEnd="16dp"
+                        android:contentDescription="Bus icon"
+                        android:src="@drawable/ic_bus" />
 
-                    <!-- 방면 -->
-                    <TextView
-                        android:id="@+id/tvDirection"
-                        android:layout_width="wrap_content"
+                    <!-- 오른쪽 텍스트 영역 -->
+                    <LinearLayout
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="복정환승센터 방면"
-                        android:textColor="#555555"
-                        android:textSize="16sp" />
+                        android:layout_weight="1"
+                        android:gravity="center_vertical"
+                        android:orientation="vertical">
 
-                    <!-- 차량 번호 -->
-                    <TextView
-                        android:id="@+id/tvBusPlate"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="서울 71 사 2848"
-                        android:textColor="#888888"
-                        android:textSize="14sp" />
+                        <!-- 버스 번호 -->
+                        <TextView
+                            android:id="@+id/tvBusNumber"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="271번 (저상)"
+                            android:textColor="#000000"
+                            android:textSize="30sp"
+                            android:textStyle="bold" />
+
+                        <!-- 방면 -->
+                        <TextView
+                            android:id="@+id/tvDirection"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="복정환승센터 방면"
+                            android:textColor="#555555"
+                            android:textSize="16sp" />
+
+                        <!-- 차량 번호 -->
+                        <TextView
+                            android:id="@+id/tvBusPlate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="서울 71 사 2848"
+                            android:textColor="#888888"
+                            android:textSize="14sp" />
+                    </LinearLayout>
                 </LinearLayout>
+
+                <!-- 🧭 현재/다음 정류장 표시 줄 -->
+                <LinearLayout
+                    android:id="@+id/rowStops"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/tvCurrentStop"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="이번 정류장 -"
+                        android:textColor="#333333"
+                        android:textSize="14sp"
+                        android:ellipsize="end"
+                        android:maxLines="1"/>
+
+                    <TextView
+                        android:id="@+id/tvNextStop"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="다음 정류장 -"
+                        android:textAlignment="textEnd"
+                        android:textColor="#333333"
+                        android:textSize="14sp"
+                        android:ellipsize="end"
+                        android:maxLines="1"/>
+                </LinearLayout>
+
             </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.cardview.widget.CardView>
-
-
 
     <!-- 🚏 승객 정보 카드 (개선 버전) -->
     <androidx.cardview.widget.CardView
@@ -228,7 +269,6 @@
             </LinearLayout>
         </LinearLayout>
     </androidx.cardview.widget.CardView>
-
 
     <!-- 3️⃣ 제어 버튼 -->
     <LinearLayout

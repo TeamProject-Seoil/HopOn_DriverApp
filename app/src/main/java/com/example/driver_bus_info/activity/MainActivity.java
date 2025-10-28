@@ -131,6 +131,27 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         if (tm != null && tm.accessToken() != null) {
+            // 운행중 가드
+            ApiService checkApi = ApiClient.get(getApplicationContext());
+            checkApi.getActiveOperation(null, "DRIVER_APP").enqueue(new retrofit2.Callback<ApiService.ActiveOperationResp>() {
+                @Override public void onResponse(retrofit2.Call<ApiService.ActiveOperationResp> call,
+                                                 retrofit2.Response<ApiService.ActiveOperationResp> res) {
+                    if (res.isSuccessful() && res.body()!=null && "RUNNING".equals(res.body().status)) {
+                        ApiService.ActiveOperationResp r = res.body();
+                        com.example.driver_bus_info.util.Nav.goDriving(MainActivity.this, r.id, r.vehicleId, r.routeId, r.routeName);
+                        return;
+                    }
+                    // 평소 로직
+                    loadProfile();
+                    fetchUnreadNoticeCount();
+                }
+                @Override public void onFailure(retrofit2.Call<ApiService.ActiveOperationResp> call, Throwable t) {
+                    // 실패 시 평소 로직
+                    loadProfile();
+                    fetchUnreadNoticeCount();
+                }
+            });
+        } else {
             loadProfile();
             fetchUnreadNoticeCount();
         }

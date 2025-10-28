@@ -1,27 +1,24 @@
+// app/src/main/java/com/example/driver_bus_info/start/StartLoding.java
 package com.example.driver_bus_info.start;
 
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
-
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.driver_bus_info.R;
-import com.example.driver_bus_info.activity.MainActivity;
-
+import com.example.driver_bus_info.activity.SplashActivity;
 
 public class StartLoding extends AppCompatActivity {
-    private static final int SPLASH_DELAY = 3000; // 3초 지연
-
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.start_loding);
+        setContentView(R.layout.activity_start);
+
         new Handler().postDelayed(() -> {
-            Intent intent = new Intent(StartLoding.this, MainActivity.class);
-            startActivity(intent);
-            finish(); // 로딩 화면은 종료
-        }, SPLASH_DELAY);
-
+            Intent i = new Intent(StartLoding.this, SplashActivity.class);
+            startActivity(i);
+            finish();
+        }, 2000);
     }
-
 }
