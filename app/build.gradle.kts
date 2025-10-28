@@ -44,7 +44,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
-
+    implementation("androidx.gridlayout:gridlayout:1.0.0")
     implementation("de.hdodenhof:circleimageview:3.1.0")
     implementation("com.naver.maps:map-sdk:3.21.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
