@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardCornerRadius="14dp"
+    app:cardElevation="3dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="64dp"
+        android:paddingStart="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:paddingEnd="56dp">
+
+        <!-- 제거 X -->
+        <ImageButton
+            android:id="@+id/btnRemove"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_close_24"
+            android:tint="#6B7280"
+            android:contentDescription="@string/delete"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
+
+        <!-- 노선명 -->
+        <TextView
+            android:id="@+id/tvRouteName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="노선명 예시"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="#111111"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnRemove"
+            app:layout_constraintTop_toTopOf="parent"/>
+
+        <!-- 차량번호 -->
+        <TextView
+            android:id="@+id/tvPlate"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="서울75사2638"
+            android:textSize="14sp"
+            android:textColor="#374151"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnRemove"
+            app:layout_constraintTop_toBottomOf="@id/tvRouteName"
+            android:layout_marginTop="2dp"/>
+
+        <!-- 노선 ID -->
+        <TextView
+            android:id="@+id/tvRouteId"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="100100611"
+            android:textSize="13sp"
+            android:textColor="#6B7280"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnRemove"
+            app:layout_constraintTop_toBottomOf="@id/tvPlate"
+            android:layout_marginTop="1dp"/>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.cardview.widget.CardView>
