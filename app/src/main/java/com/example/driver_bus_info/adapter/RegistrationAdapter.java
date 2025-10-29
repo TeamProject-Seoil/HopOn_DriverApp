@@ -1,15 +1,19 @@
 package com.example.driver_bus_info.adapter;
 
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.SystemClock;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.cardview.widget.CardView;
+import androidx.core.view.ViewCompat;
+import androidx.core.widget.ImageViewCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.driver_bus_info.R;
@@ -18,13 +22,7 @@ import com.example.driver_bus_info.service.ApiService;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * 등록된 버스 카드 리스트 어댑터
- * - 2열 레이아웃(item_driver_registration_bus.xml)에 맞춘 바인딩
- * - 선택 항목 하이라이트
- * - 클릭 디바운스(연타 방지)
- * - 접근성(ContentDescription) 보완
- */
+/** 등록된 버스 카드 어댑터: 1열 아이콘 / 2열 텍스트(1행: 노선명+유형, 2행: 차량번호) */
 public class RegistrationAdapter extends RecyclerView.Adapter<RegistrationAdapter.VH> {
 
     public interface OnSelect { void onClick(ApiService.DriverVehicleRegistrationDto item); }
@@ -34,11 +32,8 @@ public class RegistrationAdapter extends RecyclerView.Adapter<RegistrationAdapte
     private final OnRemove onRemove;
 
     private final List<ApiService.DriverVehicleRegistrationDto> data = new ArrayList<>();
-
-    // 선택 하이라이트용
     private String selectedVehicleId;
 
-    // 클릭 디바운스
     private static final long CLICK_DEBOUNCE_MS = 300L;
     private long lastClickAt = 0L;
 
@@ -50,14 +45,12 @@ public class RegistrationAdapter extends RecyclerView.Adapter<RegistrationAdapte
         setHasStableIds(true);
     }
 
-    /** 전체 리스트 교체 */
     public void submit(List<ApiService.DriverVehicleRegistrationDto> d){
         data.clear();
         if (d != null) data.addAll(d);
         notifyDataSetChanged();
     }
 
-    /** 액티비티에서 선택 저장 후 호출해주면 카드 하이라이트됨 */
     public void setSelectedVehicleId(String vehicleId){
         this.selectedVehicleId = vehicleId;
         notifyDataSetChanged();
@@ -65,7 +58,6 @@ public class RegistrationAdapter extends RecyclerView.Adapter<RegistrationAdapte
 
     @Override public long getItemId(int position) {
         ApiService.DriverVehicleRegistrationDto it = data.get(position);
-        // vehicleId가 null일 수 있으니 position fallback
         return it.vehicleId == null ? position : it.vehicleId.hashCode();
     }
 
@@ -78,19 +70,33 @@ public class RegistrationAdapter extends RecyclerView.Adapter<RegistrationAdapte
     @Override public void onBindViewHolder(@NonNull VH h, int i) {
         ApiService.DriverVehicleRegistrationDto it = data.get(i);
 
-        // 값 바인딩
-        h.tvRouteName.setText(safeText(it.routeName));                       // 좌측 상단
-        h.tvPlate.setText(safeText(it.plateNo != null ? it.plateNo : it.vehicleId)); // 좌측 하단
-        h.tvRouteId.setText(safeText(it.routeId));                           // 우측 상단
-        h.tvVehicleId.setText(safeText(it.vehicleId));                       // 우측 하단
+        // 데이터 바인딩
+        h.tvRouteName.setText(safeText(it.routeName));
+        h.tvPlate.setText(safeText(it.plateNo != null ? it.plateNo : it.vehicleId));
 
-        // 선택 하이라이트
+        String routeTypeLabel = (it.routeTypeLabel != null && !it.routeTypeLabel.isBlank())
+                ? it.routeTypeLabel
+                : codeToLabel(it.routeTypeCode);
+        h.tvRouteType.setText(safeText(routeTypeLabel));
+
+        // 유형 컬러: 노선명/노선유형 텍스트 + 아이콘 배경 틴트
+        int color = routeTypeColor(it.routeTypeCode);
+        h.tvRouteName.setTextColor(color);
+        h.tvRouteType.setTextColor(color);
+
+        // 아이콘은 흰색 유지, 배경만 색 변경
+        ImageViewCompat.setImageTintList(h.ivBusIcon, ColorStateList.valueOf(Color.WHITE));
+        ViewCompat.setBackgroundTintList(h.ivBusIcon, ColorStateList.valueOf(color));
+
+        // 선택 하이라이트 & 배지
         boolean selected = it.vehicleId != null && it.vehicleId.equals(selectedVehicleId);
         h.card.setCardBackgroundColor(selected ? Color.parseColor("#DBEAFE") : Color.WHITE);
         h.card.setCardElevation(selected ? 8f : 4f);
+        h.badgeSelected.setVisibility(selected ? View.VISIBLE : View.GONE);
 
-        // 접근성: 카드 요약
+        // 접근성
         String cd = "노선 " + (it.routeName == null ? "-" : it.routeName)
+                + ", 유형 " + (routeTypeLabel == null ? "-" : routeTypeLabel)
                 + ", 차량번호 " + (it.plateNo == null ? (it.vehicleId == null ? "-" : it.vehicleId) : it.plateNo);
         h.itemView.setContentDescription(cd);
 
@@ -106,28 +112,62 @@ public class RegistrationAdapter extends RecyclerView.Adapter<RegistrationAdapte
                 if (onSelect != null) onSelect.onClick(it);
             }
         };
-
-        h.itemView.setOnClickListener(safeClick);   // 카드 전체 = 선택
-        h.btnRemove.setOnClickListener(safeClick);  // X 버튼 = 제거
+        h.itemView.setOnClickListener(safeClick);
+        h.btnRemove.setOnClickListener(safeClick);
     }
 
     @Override public int getItemCount() { return data.size(); }
 
     private static String safeText(String s) { return (s == null || s.trim().isEmpty()) ? "-" : s; }
 
+    private static String codeToLabel(Integer code) {
+        if (code == null) return null;
+        switch (code) {
+            case 1: return "공항";
+            case 2: return "마을";
+            case 3: return "간선";
+            case 4: return "지선";
+            case 5: return "순환";
+            case 6: return "광역";
+            case 7: return "인천";
+            case 8: return "경기";
+            case 9: return "폐지";
+            case 0: return "공용";
+            default: return "기타";
+        }
+    }
+
+    private static int routeTypeColor(Integer code) {
+        if (code == null) return Color.parseColor("#6B7280");
+        switch (code) {
+            case 1: return Color.parseColor("#0288D1"); // 공항
+            case 2: return Color.parseColor("#6A1B9A"); // 마을
+            case 3: return Color.parseColor("#1976D2"); // 간선
+            case 4: return Color.parseColor("#2E7D32"); // 지선
+            case 5: return Color.parseColor("#F9A825"); // 순환
+            case 6: return Color.parseColor("#C62828"); // 광역
+            case 7: return Color.parseColor("#1565C0"); // 인천
+            case 8: return Color.parseColor("#00695C"); // 경기
+            case 9: return Color.parseColor("#374151"); // 폐지
+            case 0: default: return Color.parseColor("#6B7280"); // 공용/기타
+        }
+    }
+
     static class VH extends RecyclerView.ViewHolder {
         final CardView card;
-        final TextView tvRouteName, tvPlate, tvRouteId, tvVehicleId;
+        final ImageView ivBusIcon;
+        final TextView tvRouteName, tvRouteType, tvPlate;
+        final TextView badgeSelected;           // ⭐ 추가
         final ImageButton btnRemove;
         VH(@NonNull View v){
             super(v);
-            // 루트가 CardView라는 전제
-            card        = (CardView) v;
-            tvRouteName = v.findViewById(R.id.tvRouteName);
-            tvPlate     = v.findViewById(R.id.tvPlate);
-            tvRouteId   = v.findViewById(R.id.tvRouteId);
-            tvVehicleId = v.findViewById(R.id.tvVehicleId);
-            btnRemove   = v.findViewById(R.id.btnRemove);
+            card          = (CardView) v;
+            ivBusIcon     = v.findViewById(R.id.ivBusIcon);
+            tvRouteName   = v.findViewById(R.id.tvRouteName);
+            tvRouteType   = v.findViewById(R.id.tvRouteType);
+            tvPlate       = v.findViewById(R.id.tvPlate);
+            badgeSelected = v.findViewById(R.id.badgeSelected); // ⭐
+            btnRemove     = v.findViewById(R.id.btnRemove);
         }
     }
 }

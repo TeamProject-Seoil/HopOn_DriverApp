@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 가운데 34dp 원만 그리기 (필요시 30dp/28dp로 더 줄이세요) -->
+    <item
+        android:width="60dp"
+        android:height="60dp"
+        android:gravity="center">
+        <shape android:shape="oval">
+            <!-- 기본 회색; 코드에서 backgroundTint로 덮어씀 -->
+            <solid android:color="#D1D5DB"/>
+        </shape>
+    </item>
+</layer-list>

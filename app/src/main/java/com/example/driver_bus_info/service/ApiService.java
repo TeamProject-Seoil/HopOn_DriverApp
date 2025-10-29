@@ -390,6 +390,10 @@ public interface ApiService {
         public String routeId;
         public String routeName;
         public String createdAt;
+
+        // ▼ 백엔드가 내려주는 메타 (저상 제거)
+        public Integer routeTypeCode;
+        public String  routeTypeLabel;
     }
 
     /** 내 등록 이력 조회 (최근순) */
@@ -407,17 +411,19 @@ public interface ApiService {
             @Path("vehicleId") String vehicleId
     );
 
-    // ApiService.java 내부
+    // =========================================================
+    // =========== 드라이버 운행 “이번/다음 정류장” ===============
+    // =========================================================
     class ArrivalNowResponse {
-        public String currentStopId;
-        public String currentStopName;
-        public String nextStopId;
-        public String nextStopName;
-        public Integer etaSec; // 선택: 다음정류장까지 남은 초
+        public String currentStopName;   // 이번 정류장
+        public String nextStopName;      // 다음 정류장
+        public Integer etaSec;           // 다음 정류장까지 남은 초(없으면 null)
+
+        // ▼ 백엔드 추가 필드 (저상 제거)
+        public Integer routeTypeCode;    // 서울시 busRouteType 코드 (null 가능)
+        public String  routeTypeLabel;   // 라벨(간선/지선/…)
     }
 
-    // 인터페이스
     @GET("/api/driver/operations/arrival-now")
     Call<ArrivalNowResponse> arrivalNow(@Header("Authorization") String bearer);
-
 }
