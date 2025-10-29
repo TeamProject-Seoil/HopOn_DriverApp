@@ -4,10 +4,10 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="16dp"
-    android:layout_marginVertical="8dp"
+    android:layout_marginVertical="3dp"
     app:cardCornerRadius="16dp"
     app:cardUseCompatPadding="true"
-    app:cardElevation="4dp">
+    app:cardElevation="2dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -17,7 +17,7 @@
         android:paddingTop="14dp"
         android:paddingBottom="14dp">
 
-        <!-- 삭제(X) 버튼 : 카드 우상단 '진짜 오른쪽 끝' -->
+        <!-- 삭제(X) : 세로 중앙 정렬 -->
         <ImageButton
             android:id="@+id/btnRemove"
             android:layout_width="40dp"
@@ -27,19 +27,34 @@
             android:tint="#6B7280"
             android:contentDescription="@string/delete"
             app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginEnd="8dp"
-            android:layout_marginTop="2dp" />
+            android:layout_marginEnd="8dp" />
 
-        <!-- 좌/우 열 비율: 좌 60% / 우 40% -->
+        <!-- 열 가이드: 좌 22% (아이콘) / 우 78% (텍스트) -->
         <androidx.constraintlayout.widget.Guideline
-            android:id="@+id/guideMid"
+            android:id="@+id/guideCol"
             android:orientation="vertical"
-            app:layout_constraintGuide_percent="0.6"
+            app:layout_constraintGuide_percent="0.22"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
 
-        <!-- [좌측 열] 라벨/값 -->
+        <!-- [1열] 버스 아이콘: 흰 버스 + 둥근 배경(shape) -->
+        <ImageView
+            android:id="@+id/ivBusIcon"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="@drawable/bg_bus_circle"
+            android:contentDescription="@string/app_name"
+            android:padding="16dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_bus_in"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/guideCol"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- [2열] 1행 - 라벨 -->
         <TextView
             android:id="@+id/labelRouteName"
             android:layout_width="0dp"
@@ -48,26 +63,56 @@
             android:textSize="12sp"
             android:textColor="#6B7280"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/guideMid"
-            android:layout_marginEnd="12dp" />
+            app:layout_constraintStart_toStartOf="@id/guideCol"
+            app:layout_constraintEnd_toStartOf="@+id/labelRouteType"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="8dp" />
 
+        <TextView
+            android:id="@+id/labelRouteType"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="노선유형"
+            android:textSize="12sp"
+            android:textColor="#6B7280"
+            app:layout_constraintTop_toTopOf="@id/labelRouteName"
+            app:layout_constraintEnd_toStartOf="@id/btnRemove"
+            android:layout_marginEnd="8dp" />
+
+        <!-- [2열] 1행 - 값: 노선명(좌) + 노선유형(우)  -->
         <TextView
             android:id="@+id/tvRouteName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="2312"
-            android:textStyle="bold"
-            android:textSize="18sp"
-            android:textColor="#111111"
-            android:maxLines="1"
-            android:ellipsize="end"
-            app:layout_constraintTop_toBottomOf="@id/labelRouteName"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/guideMid"
+            android:layout_marginStart="16dp"
             android:layout_marginTop="2dp"
-            android:layout_marginEnd="12dp" />
+            android:layout_marginEnd="8dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="01A"
+            android:textColor="#111111"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toStartOf="@+id/tvRouteType"
+            app:layout_constraintStart_toStartOf="@id/guideCol"
+            app:layout_constraintTop_toBottomOf="@id/labelRouteName" />
 
+        <TextView
+            android:id="@+id/tvRouteType"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="8dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="-"
+            android:textColor="#6B7280"
+            android:textSize="13.5sp"
+            app:layout_constraintBaseline_toBaselineOf="@id/tvRouteName"
+            app:layout_constraintEnd_toStartOf="@id/btnRemove"
+            app:layout_constraintStart_toEndOf="@id/tvRouteName" />
+
+        <!-- [2열] 2행: 차량번호(라벨 + 값) -->
         <TextView
             android:id="@+id/labelPlate"
             android:layout_width="0dp"
@@ -76,95 +121,49 @@
             android:textSize="12sp"
             android:textColor="#6B7280"
             app:layout_constraintTop_toBottomOf="@id/tvRouteName"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/guideMid"
+            app:layout_constraintStart_toStartOf="@id/guideCol"
+            app:layout_constraintEnd_toStartOf="@id/btnRemove"
+            android:layout_marginStart="16dp"
             android:layout_marginTop="8dp"
-            android:layout_marginEnd="12dp" />
+            android:layout_marginEnd="8dp" />
 
         <TextView
             android:id="@+id/tvPlate"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="서울74사4320"
+            android:text="서울74사6177"
             android:textSize="15sp"
             android:textColor="#374151"
             android:maxLines="1"
             android:ellipsize="end"
             app:layout_constraintTop_toBottomOf="@id/labelPlate"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/guideMid"
+            app:layout_constraintStart_toStartOf="@id/guideCol"
+            app:layout_constraintEnd_toStartOf="@id/badgeSelected"
+            android:layout_marginStart="16dp"
             android:layout_marginTop="2dp"
-            android:layout_marginEnd="12dp" />
+            android:layout_marginEnd="8dp" />
 
-        <!-- [우측 열] : 우측 열은 X버튼과 겹치지 않도록 '끝을 btnRemove 시작'에 묶음 -->
+        <!-- ⭐ 선택 배지: 차량번호 오른쪽/노선유형 아래 -->
         <TextView
-            android:id="@+id/labelRouteId"
-            android:layout_width="0dp"
+            android:id="@+id/badgeSelected"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="노선 ID"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:text="선택됨"
             android:textSize="12sp"
-            android:textColor="#6B7280"
-            app:layout_constraintTop_toTopOf="@id/labelRouteName"
-            app:layout_constraintStart_toStartOf="@id/guideMid"
+            android:textStyle="bold"
+            android:textColor="#2563EB"
+            android:background="@drawable/bg_chip_selected"
+            android:visibility="gone"
+            app:layout_constraintStart_toEndOf="@id/tvPlate"
             app:layout_constraintEnd_toStartOf="@id/btnRemove"
-            android:layout_marginStart="12dp"
+            app:layout_constraintTop_toTopOf="@id/tvPlate"
+            app:layout_constraintBottom_toBottomOf="@id/tvPlate"
+            android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp" />
 
-        <TextView
-            android:id="@+id/tvRouteId"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="100100611"
-            android:textSize="13.5sp"
-            android:textColor="#6B7280"
-            android:maxLines="1"
-            android:ellipsize="end"
-            app:layout_constraintTop_toBottomOf="@id/labelRouteId"
-            app:layout_constraintStart_toStartOf="@id/guideMid"
-            app:layout_constraintEnd_toStartOf="@id/btnRemove"
-            android:layout_marginTop="2dp"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="8dp" />
-
-        <TextView
-            android:id="@+id/labelVehicleId"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="차량 ID"
-            android:textSize="12sp"
-            android:textColor="#6B7280"
-            app:layout_constraintTop_toBottomOf="@id/tvRouteId"
-            app:layout_constraintStart_toStartOf="@id/guideMid"
-            app:layout_constraintEnd_toStartOf="@id/btnRemove"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="8dp" />
-
-        <TextView
-            android:id="@+id/tvVehicleId"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="122014051"
-            android:textSize="13.5sp"
-            android:textColor="#6B7280"
-            android:maxLines="1"
-            android:ellipsize="end"
-            app:layout_constraintTop_toBottomOf="@id/labelVehicleId"
-            app:layout_constraintStart_toStartOf="@id/guideMid"
-            app:layout_constraintEnd_toStartOf="@id/btnRemove"
-            android:layout_marginTop="2dp"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="8dp" />
-
-        <!-- 점선 구분선(선택). 필요 없으면 지워도 됨 -->
-        <View
-            android:id="@+id/divider"
-            android:layout_width="1dp"
-            android:layout_height="0dp"
-            android:alpha="0.25"
-            android:background="#1F2937"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="@id/guideMid" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.cardview.widget.CardView>
