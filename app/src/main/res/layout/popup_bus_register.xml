@@ -1,82 +1,121 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="@drawable/popup_background"
-    android:padding="0dp">
+    android:padding="16dp">
 
-    <!-- 타이틀 -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:gravity="center"
-        android:background="#4B93FF"
-        android:text="새 등록"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:textStyle="bold" />
-
-    <!-- 내용 -->
-    <LinearLayout
-        android:layout_width="match_parent"
+    <!-- 카드 컨테이너 -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="320dp"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="18dp">
+        app:cardCornerRadius="18dp"
+        app:cardUseCompatPadding="true"
+        app:cardElevation="10dp">
 
-        <TextView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="※ 서버 등록에는 ‘버스 차량번호(번호판)’만 필요합니다."
-            android:textSize="12sp"
-            android:textColor="#666666"
-            android:layout_marginBottom="10dp"/>
+            android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="버스 차량번호"
-            android:textSize="16sp"
-            android:textColor="#333333"
-            android:textStyle="bold"
-            android:layout_marginBottom="6dp"/>
+            <!-- 타이틀(파란 배경 + 상단 모서리만 라운드) -->
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:gravity="center"
+                android:text="새 등록"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:background="@drawable/dialog_title_bg"/>
 
-        <EditText
-            android:id="@+id/edit_bus_number"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:hint="예: 서울71사2848"
-            android:background="@drawable/edittext_background"
-            android:paddingHorizontal="12dp"
-            android:inputType="text"
-            android:maxLength="30"/>
-    </LinearLayout>
+            <!-- 내용 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp"
+                android:background="@color/white">
 
-    <!-- 버튼 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:weightSum="2"
-        android:padding="12dp">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="※ 서버 등록에는 ‘버스 차량번호(번호판)’만 필요합니다."
+                    android:textSize="12sp"
+                    android:textColor="#666666"
+                    android:layout_marginBottom="12dp"/>
 
-        <Button
-            android:id="@+id/btn_cancel"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:text="취소"
-            android:textColor="@android:color/white"
-            android:backgroundTint="#BDBDBD"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="버스 차량번호"
+                    android:textSize="15sp"
+                    android:textColor="#333333"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="6dp"/>
 
-        <Button
-            android:id="@+id/btn_register"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:text="등록"
-            android:textColor="@android:color/white"
-            android:backgroundTint="#4B93FF"/>
-    </LinearLayout>
-</LinearLayout>
+                <!-- 머티리얼 입력 필드(모서리 라운드) -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/til_plate"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="예: 서울71사2848"
+                    app:boxCornerRadiusTopStart="10dp"
+                    app:boxCornerRadiusTopEnd="10dp"
+                    app:boxCornerRadiusBottomStart="10dp"
+                    app:boxCornerRadiusBottomEnd="10dp">
+
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edit_bus_number"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="48dp"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp"
+                        android:gravity="center_vertical"
+                        android:textSize="16sp"
+                        android:inputType="textCapCharacters"
+                        android:maxLength="30"
+                        android:singleLine="true"/>
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+
+            <!-- 하단 버튼 바(분리선 느낌을 위해 약간의 상단 패딩) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="12dp"
+                android:paddingTop="8dp"
+                android:background="@color/white">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_cancel"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="취소"
+                    android:textAllCaps="false"
+                    app:strokeColor="#D1D5DB"
+                    app:strokeWidth="1dp"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_register"
+                    style="@style/Widget.MaterialComponents.Button"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:text="등록"
+                    android:textAllCaps="false"
+                    app:backgroundTint="#4B93FF"
+                    app:cornerRadius="12dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+</FrameLayout>

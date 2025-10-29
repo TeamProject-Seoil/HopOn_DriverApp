@@ -1,3 +1,4 @@
+// app/src/main/java/com/example/driver_bus_info/activity/MainActivity.java
 package com.example.driver_bus_info.activity;
 
 import androidx.activity.OnBackPressedCallback;
@@ -9,12 +10,14 @@ import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -27,8 +30,14 @@ import com.example.driver_bus_info.util.JwtUtils;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
+import android.graphics.Color;
+import android.content.res.ColorStateList;
+
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
@@ -46,6 +55,9 @@ public class MainActivity extends AppCompatActivity {
 
     private ImageView imgDriverProfile;
     private TextView tvHello, tvDriverName, tvCompany, tvLastLogin;
+
+    // ▼ 최근 운행 기록 컨테이너
+    private LinearLayout logList;
 
     private TokenManager tm;
     private ApiService api;
@@ -82,6 +94,9 @@ public class MainActivity extends AppCompatActivity {
         tvCompany     = findViewById(R.id.tvCompany);
         tvLastLogin   = findViewById(R.id.tvLastLogin);
 
+        // ▼ 최근 운행 기록 컨테이너
+        logList = findViewById(R.id.logList);
+
         tm         = TokenManager.get(this);
         api        = ApiClient.get(this);
         clientType = DeviceInfo.getClientType();
@@ -107,12 +122,13 @@ public class MainActivity extends AppCompatActivity {
 
         // 기타
         ivLogMore.setOnClickListener(v ->
-                startActivity(new Intent(MainActivity.this, BusLogActivity.class)));
+                startActivity(new Intent(MainActivity.this, DriverLogsActivity.class)));
         btnEditProfile.setOnClickListener(v -> showVerifyPasswordDialog());
 
         // 데이터 로드
         loadProfile();
         fetchUnreadNoticeCount(); // 배지 갱신
+        loadRecentLogs();         // ★ 최근 운행 기록
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() { confirmExit(); }
@@ -124,16 +140,16 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(MainActivity.this, BusListActivity.class);
             startActivity(intent);
         });
-
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         if (tm != null && tm.accessToken() != null) {
+            final String bearer = (tm.tokenType() != null ? tm.tokenType() : "Bearer") + " " + tm.accessToken();
             // 운행중 가드
             ApiService checkApi = ApiClient.get(getApplicationContext());
-            checkApi.getActiveOperation(null, "DRIVER_APP").enqueue(new retrofit2.Callback<ApiService.ActiveOperationResp>() {
+            checkApi.getActiveOperation(bearer, "DRIVER_APP").enqueue(new retrofit2.Callback<ApiService.ActiveOperationResp>() {
                 @Override public void onResponse(retrofit2.Call<ApiService.ActiveOperationResp> call,
                                                  retrofit2.Response<ApiService.ActiveOperationResp> res) {
                     if (res.isSuccessful() && res.body()!=null && "RUNNING".equals(res.body().status)) {
@@ -144,16 +160,19 @@ public class MainActivity extends AppCompatActivity {
                     // 평소 로직
                     loadProfile();
                     fetchUnreadNoticeCount();
+                    loadRecentLogs(); // ★ 갱신
                 }
                 @Override public void onFailure(retrofit2.Call<ApiService.ActiveOperationResp> call, Throwable t) {
                     // 실패 시 평소 로직
                     loadProfile();
                     fetchUnreadNoticeCount();
+                    loadRecentLogs(); // ★ 갱신
                 }
             });
         } else {
             loadProfile();
             fetchUnreadNoticeCount();
+            loadRecentLogs(); // ★ 갱신
         }
     }
 
@@ -398,5 +417,190 @@ public class MainActivity extends AppCompatActivity {
         });
 
         dialog.show();
+    }
+
+    // =========================
+    // 최근 운행 기록 렌더링
+    // =========================
+
+    /** 최근 종료 운행 기록 로딩 — (신) 페이지 API 사용 (최대 4건, 최신순 보장) */
+    private void loadRecentLogs() {
+        if (tm == null || tm.accessToken() == null || logList == null) {
+            renderRecentLogs(null);
+            return;
+        }
+        final String bearer = (tm.tokenType() != null ? tm.tokenType() : "Bearer") + " " + tm.accessToken();
+
+        api.getDriverOperations(bearer, clientType, "ENDED", 0, 4, "endedAt,desc")
+                .enqueue(new Callback<ApiService.PageResponse<ApiService.DriverOperationListItem>>() {
+                    @Override public void onResponse(
+                            Call<ApiService.PageResponse<ApiService.DriverOperationListItem>> call,
+                            Response<ApiService.PageResponse<ApiService.DriverOperationListItem>> res) {
+                        if (!res.isSuccessful() || res.body() == null) {
+                            renderRecentLogs(null);
+                            return;
+                        }
+                        // 백엔드 정렬과 별개로, 클라에서 endedAt DESC로 한 번 더 보장
+                        List<ApiService.DriverOperationListItem> list =
+                                new ArrayList<>(res.body().content != null ? res.body().content : List.of());
+                        list.sort(Comparator.comparing((ApiService.DriverOperationListItem x) ->
+                                        safeEpoch(x.endedAt) != null ? safeEpoch(x.endedAt) : safeEpoch(x.startedAt))
+                                .reversed());
+                        // 최대 4건으로 제한
+                        if (list.size() > 4) list = list.subList(0, 4);
+                        renderRecentLogs(list);
+                    }
+                    @Override public void onFailure(
+                            Call<ApiService.PageResponse<ApiService.DriverOperationListItem>> call,
+                            Throwable t) {
+                        renderRecentLogs(null);
+                    }
+                });
+    }
+
+    /** 컨테이너에 동적 렌더 (5열: (연/월 2줄) | 노선명/차량번호 | 유형칩 | 출발 | 도착) */
+    private void renderRecentLogs(List<ApiService.DriverOperationListItem> items) {
+        if (logList == null) return;
+        logList.removeAllViews();
+
+        if (items == null || items.isEmpty()) {
+            TextView tv = new TextView(this);
+            tv.setText("최근 종료된 운행 기록이 없습니다.");
+            tv.setTextColor(0xFF6C737F);
+            tv.setTextSize(13f);
+            logList.addView(tv);
+            return;
+        }
+
+        LayoutInflater inf = LayoutInflater.from(this);
+        int limit = Math.min(items.size(), 4);
+        for (int i = 0; i < limit; i++) {
+            ApiService.DriverOperationListItem r = items.get(i);
+            View row = inf.inflate(R.layout.item_driver_log_row, logList, false);
+
+            TextView tvYear  = row.findViewById(R.id.tvColYear);
+            TextView tvMonth = row.findViewById(R.id.tvColMonth);
+            TextView tvName  = row.findViewById(R.id.tvColRouteName);
+            TextView tvPlate = row.findViewById(R.id.tvColPlate);
+            TextView tvType  = row.findViewById(R.id.tvColRouteType);
+            TextView tvStart = row.findViewById(R.id.tvColStart);
+            TextView tvEnd   = row.findViewById(R.id.tvColEnd);
+
+            // 1열: 날짜(연/월 2줄)
+            String[] ym = splitYearMonth(r.startedAt);
+            tvYear.setText(ym[0]);
+            tvMonth.setText(ym[1]);
+
+            // 2열: 노선명 / 번호판
+            tvName.setText(nz(r.routeName, "-"));
+            tvPlate.setText(nz(r.plateNo, "-"));
+
+            // 3열: 노선유형 (색상 동기화)
+            Integer code = r.routeTypeCode != null ? r.routeTypeCode : labelToCode(r.routeTypeLabel);
+            String  label= r.routeTypeLabel != null ? r.routeTypeLabel : codeToLabel(code);
+            int color = routeTypeColor(code);
+
+            tvType.setText(nz(label, "-"));
+            tvType.setTextColor(color);
+            tvType.setBackgroundTintList(ColorStateList.valueOf(adjustAlpha(color, 0.15f)));
+
+            // 노선명도 동일 색상 적용
+            tvName.setTextColor(color);
+
+            // 4,5열: 출발/도착
+            tvStart.setText(fmtHm(r.startedAt));
+            tvEnd.setText(fmtHm(r.endedAt));
+
+            // 행 클릭 -> 전체 로그 페이지
+            row.setOnClickListener(v ->
+                    startActivity(new Intent(MainActivity.this, DriverLogsActivity.class)));
+
+            logList.addView(row);
+        }
+    }
+
+    private String nz(String s, String d){ return (s==null || s.isEmpty()) ? d : s; }
+
+    /** 연/월 분리 */
+    private String[] splitYearMonth(String iso){
+        Long t = toEpochMillis(iso);
+        if (t == null) return new String[]{"-", "-"};
+        SimpleDateFormat fy = new SimpleDateFormat("yyyy", Locale.KOREA);
+        SimpleDateFormat fm = new SimpleDateFormat("MM", Locale.KOREA);
+        TimeZone kst = TimeZone.getTimeZone("Asia/Seoul");
+        fy.setTimeZone(kst); fm.setTimeZone(kst);
+        return new String[]{ fy.format(new Date(t)), fm.format(new Date(t)) };
+    }
+
+    /** "HH:mm" */
+    private String fmtHm(String iso){
+        Long t = toEpochMillis(iso);
+        if (t == null) return "-";
+        SimpleDateFormat f = new SimpleDateFormat("HH:mm", Locale.KOREA);
+        f.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
+        return f.format(new Date(t));
+    }
+
+    private Long safeEpoch(String iso){
+        try { return toEpochMillis(iso); } catch (Exception e){ return null; }
+    }
+
+    // ---------- 색상/라벨 유틸 ----------
+
+    private Integer labelToCode(String label){
+        if (label == null) return null;
+        String t = label.trim();
+        switch (t){
+            case "공항": return 1;
+            case "마을": return 2;
+            case "간선": return 3;
+            case "지선": return 4;
+            case "순환": return 5;
+            case "광역": return 6;
+            case "인천": return 7;
+            case "경기": return 8;
+            case "폐지": return 9;
+            case "공용": return 0;
+            default: return null;
+        }
+    }
+
+    private String codeToLabel(Integer code){
+        if (code == null) return null;
+        switch (code){
+            case 1: return "공항";
+            case 2: return "마을";
+            case 3: return "간선";
+            case 4: return "지선";
+            case 5: return "순환";
+            case 6: return "광역";
+            case 7: return "인천";
+            case 8: return "경기";
+            case 9: return "폐지";
+            case 0: return "공용";
+            default: return null;
+        }
+    }
+
+    private int routeTypeColor(Integer code){
+        if (code == null) return Color.parseColor("#6B7280");
+        switch (code){
+            case 1: return Color.parseColor("#0288D1"); // 공항
+            case 2: return Color.parseColor("#6A1B9A"); // 마을
+            case 3: return Color.parseColor("#1976D2"); // 간선
+            case 4: return Color.parseColor("#2E7D32"); // 지선
+            case 5: return Color.parseColor("#F9A825"); // 순환
+            case 6: return Color.parseColor("#C62828"); // 광역
+            case 7: return Color.parseColor("#1565C0"); // 인천
+            case 8: return Color.parseColor("#00695C"); // 경기
+            case 9: return Color.parseColor("#374151"); // 폐지
+            case 0: return Color.parseColor("#6B7280"); // 공용
+            default: return Color.parseColor("#6B7280");
+        }
+    }
+
+    private int adjustAlpha(int color, float factor){
+        int alpha = Math.round(Color.alpha(color)*factor);
+        return (color & 0x00FFFFFF) | (alpha << 24);
     }
 }

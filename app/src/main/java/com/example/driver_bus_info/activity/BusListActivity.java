@@ -6,7 +6,6 @@ import android.app.Dialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
@@ -26,7 +25,6 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
-import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -42,6 +40,7 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.tasks.CancellationTokenSource;
+import com.google.android.material.card.MaterialCardView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,8 +57,8 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
 
     private TextView tvSelectedBusNumber, tvSelectedRoute, tvSelectedStatus, tvSelectedPlate;
     private TextView tvSelectedRouteType;
-    private ImageView ivSelectedIcon;            // 선택 카드 아이콘 배경(tint 대상)
-    private ImageButton btnSelectedRemove;       // 선택 카드 X 버튼
+    private ImageView ivSelectedIcon;
+    private ImageButton btnSelectedRemove;
 
     private TextView tvRegEmpty;
     private RecyclerView rvRegistrations;
@@ -85,6 +84,13 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
     private CancellationTokenSource currentCts;
     private LocationCallback singleCallback;
     private final Handler handler = new Handler();
+
+    // 자동 매칭 재시도 컨트롤
+    private volatile boolean keepMatching = false;
+    private int matchAttempt = 0;
+    private Runnable pendingRetry = null;
+    private Double lastLat = null, lastLon = null;
+    private static final int MAX_ATTEMPTS = 60; // 안전상한
 
     // 리스트
     private RegistrationAdapter regAdapter;
@@ -123,25 +129,17 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
         // 뒤로
         btnBack.setOnClickListener(v -> { startActivity(new Intent(this, MainActivity.class)); finish(); });
 
-        // 선택 카드 X버튼: 현재 선택/등록 해제
+        // 선택 카드 X버튼: 현재 선택/등록 해제 (서버 삭제 없이 로컬만)
         if (btnSelectedRemove != null) {
             btnSelectedRemove.setOnClickListener(v -> {
                 if (selVehicleId == null) {
                     Toast.makeText(this, "선택된 차량이 없습니다.", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                api.deleteDriverRegistration(null, "DRIVER_APP", selVehicleId)
-                        .enqueue(new Callback<Void>() {
-                            @Override public void onResponse(Call<Void> call, Response<Void> response) {
-                                clearSelectedVehicle();
-                                updateSelectedCard();  // 기본값으로 초기화
-                                loadRegistrations();   // 리스트 새로고침
-                                Toast.makeText(BusListActivity.this, "선택이 해제되었습니다.", Toast.LENGTH_SHORT).show();
-                            }
-                            @Override public void onFailure(Call<Void> call, Throwable t) {
-                                Toast.makeText(BusListActivity.this, "해제 실패: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                            }
-                        });
+                clearSelectedVehicle();
+                updateSelectedCard();
+                regAdapter.setSelectedVehicleId(null);
+                Toast.makeText(BusListActivity.this, "선택을 해제했습니다.", Toast.LENGTH_SHORT).show();
             });
         }
 
@@ -175,14 +173,14 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
 
                                     saveSelectedVehicle(r.vehicleId, r.plateNo, r.routeId, r.routeName);
                                     regAdapter.setSelectedVehicleId(r.vehicleId);
-                                    updateSelectedCard();         // 기본값 그리기
+                                    updateSelectedCard(); // 기본값 그리기
 
                                     // 선택한 아이템의 메타 즉시 카드에 반영
                                     String rtLabel = (item.routeTypeLabel != null && !item.routeTypeLabel.isBlank())
                                             ? item.routeTypeLabel : codeToLabel(item.routeTypeCode);
                                     Integer rtCode  = (item.routeTypeCode != null) ? item.routeTypeCode : labelToCode(rtLabel);
                                     if (rtLabel != null) tvSelectedRouteType.setText(rtLabel);
-                                    applySelectedMetaColor(rtCode);   // 텍스트 + 아이콘 배경 틴트
+                                    applySelectedMetaColor(rtCode);
 
                                     // 보정 루틴
                                     applyMetaFromRegs(r.vehicleId);
@@ -218,9 +216,9 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
         // 초기 상태
         loadSelectedVehicle();
         regAdapter.setSelectedVehicleId(selVehicleId);
-        updateSelectedCard();   // 기본값 그리고, 캐시에서 색 시도
-        loadRegistrations();    // 로드되면 선택 차량 메타도 반영
-        loadArrivalMeta();      // 운행 중이면 실시간 보정
+        updateSelectedCard();
+        loadRegistrations();
+        loadArrivalMeta();
     }
 
     private void setDriveStartEnabled(boolean enabled) {
@@ -240,11 +238,7 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
                         regAdapter.submit(list);
                         regAdapter.setSelectedVehicleId(selVehicleId);
                         tvRegEmpty.setVisibility(list.isEmpty() ? android.view.View.VISIBLE : android.view.View.GONE);
-
-                        // 현재 선택 차량 메타를 리스트에서 카드로 반영
                         applyMetaFromRegs(selVehicleId);
-
-                        // 리스트 늦게 온 경우 한 번 더 보정
                         if (selVehicleId != null) {
                             Integer code = findRouteTypeCodeInCache(selVehicleId);
                             if (code != null) applySelectedMetaColor(code);
@@ -303,7 +297,6 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
         tvSelectedBusNumber.setText(selRouteName == null ? "-" : selRouteName);
 
         if (!has) {
-            // 선택 없음: 회색 초기화
             tvSelectedRouteType.setText("-");
             tvSelectedRoute.setTextColor(parseColor("#111111"));
             tvSelectedRouteType.setTextColor(parseColor("#6B7280"));
@@ -313,40 +306,32 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
             return;
         }
 
-        // 선택됨: 캐시 기반으로 라벨/코드 가져오기
         Integer codeFromCache  = findRouteTypeCodeInCache(selVehicleId);
         String  labelFromCache = findRouteTypeLabelInCache(selVehicleId);
 
         if (labelFromCache != null) tvSelectedRouteType.setText(labelFromCache);
 
-        // 1순위: 코드가 있으면 바로 컬러 적용
         if (codeFromCache != null) {
             applySelectedMetaColor(codeFromCache);
         } else if (labelFromCache != null) {
-            // 2순위: 코드가 없고 라벨만 있으면 라벨→코드 변환 후 컬러 적용
             Integer fallback = labelToCode(labelFromCache);
             if (fallback != null) applySelectedMetaColor(fallback);
         }
-        // 그 외에는 기존 색 유지(이후 보정 루틴에서 덮어씀)
 
         tvSelectedStatus.setText("차량 상태: 선택됨(대기)");
         setDriveStartEnabled(true);
     }
-
-
 
     /** 등록 이력 캐시에서 선택 차량 메타를 카드에 반영 + 색상/아이콘 틴트 적용 */
     private void applyMetaFromRegs(@Nullable String vehicleId) {
         if (vehicleId == null || lastRegs == null) return;
         for (ApiService.DriverVehicleRegistrationDto it : lastRegs) {
             if (vehicleId.equals(it.vehicleId)) {
-                // 라벨 우선
                 String label = (it.routeTypeLabel != null && !it.routeTypeLabel.isBlank())
                         ? it.routeTypeLabel
                         : codeToLabel(it.routeTypeCode);
                 if (label != null) tvSelectedRouteType.setText(label);
 
-                // 코드 보정: null이면 라벨→코드
                 Integer code = (it.routeTypeCode != null) ? it.routeTypeCode : labelToCode(label);
                 applySelectedMetaColor(code);
                 break;
@@ -354,26 +339,22 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
         }
     }
 
-
     /** 선택 카드용 메타(노선유형) 실시간 보정 + 색상/아이콘 틴트 */
     private void loadArrivalMeta() {
-        final String expectVehicleId = selVehicleId; // 요청 시점의 선택값 스냅샷
+        final String expectVehicleId = selVehicleId;
 
         api.arrivalNow(null).enqueue(new Callback<ApiService.ArrivalNowResponse>() {
             @Override public void onResponse(Call<ApiService.ArrivalNowResponse> call,
                                              Response<ApiService.ArrivalNowResponse> res) {
                 if (!res.isSuccessful() || res.body()==null) return;
-                // 선택이 바뀌었으면 무시(오래된 응답)
                 if (!TextUtils.equals(expectVehicleId, selVehicleId)) return;
 
                 ApiService.ArrivalNowResponse r = res.body();
 
-                // 코드/라벨 보정
                 String  label = (r.routeTypeLabel != null && !r.routeTypeLabel.isBlank())
                         ? r.routeTypeLabel : codeToLabel(r.routeTypeCode);
                 Integer code  = (r.routeTypeCode != null) ? r.routeTypeCode : labelToCode(label);
 
-                // 🔴 핵심: 유효한 정보가 없으면 "아무 것도 하지 말고" 기존 색 유지
                 if (code == null && (label == null || label.isBlank())) return;
 
                 if (label != null) tvSelectedRouteType.setText(label);
@@ -383,8 +364,6 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
         });
     }
 
-
-
     /** 선택 카드 색상/아이콘 배경 틴트를 일괄 적용 */
     private void applySelectedMetaColor(@Nullable Integer routeTypeCode) {
         int color = routeTypeColor(routeTypeCode);
@@ -393,17 +372,14 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
         tintCircleBackground(ivSelectedIcon, color);
     }
 
-    /** bg_bus_circle(Shape) 에 안정적으로 틴트 적용 */
+    /** bg_bus_circle(Shape) 에 안정적으로 틴트 적용(선택 카드) */
     private void tintCircleBackground(@Nullable ImageView iv, int color) {
         if (iv == null) return;
-        // 배경 원 색상: backgroundTint 로
         ViewCompat.setBackgroundTintList(iv, android.content.res.ColorStateList.valueOf(color));
-        // 버스 아이콘은 항상 흰색
         androidx.core.widget.ImageViewCompat.setImageTintList(
                 iv, android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
         );
     }
-
 
     /** 캐시에서 현재 선택 차량의 유형코드 찾기 */
     private @Nullable Integer findRouteTypeCodeInCache(@Nullable String vehicleId) {
@@ -481,15 +457,21 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
         }
     }
 
-    // ===== (이하 운행 시작 플로우 동일) =====
+    // ===== 팝업들 =====
     private void showBusRegisterPopup() {
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(R.layout.popup_bus_register);
-        if (dialog.getWindow()!=null) {
-            dialog.getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
-            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            WindowManager.LayoutParams lp = dialog.getWindow().getAttributes();
+            lp.width  = (int) (getResources().getDisplayMetrics().widthPixels * 0.90f);
+            lp.height = WindowManager.LayoutParams.WRAP_CONTENT;
+            lp.gravity = android.view.Gravity.CENTER;
+            dialog.getWindow().setAttributes(lp);
         }
+
         EditText editBusNumber = dialog.findViewById(R.id.edit_bus_number);
         Button btnCancel = dialog.findViewById(R.id.btn_cancel);
         Button btnRegister = dialog.findViewById(R.id.btn_register);
@@ -497,9 +479,13 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
         btnCancel.setOnClickListener(v -> dialog.dismiss());
         btnRegister.setOnClickListener(v -> {
             String plateNo = editBusNumber.getText().toString().trim();
-            if (TextUtils.isEmpty(plateNo)) { Toast.makeText(this, "버스 차량번호(번호판)를 입력하세요.", Toast.LENGTH_SHORT).show(); return; }
+            if (TextUtils.isEmpty(plateNo)) {
+                Toast.makeText(this, "버스 차량번호(번호판)를 입력하세요.", Toast.LENGTH_SHORT).show();
+                return;
+            }
             callAssignVehicle(plateNo, dialog);
         });
+
         dialog.show();
     }
 
@@ -518,9 +504,9 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
                         ApiService.AssignVehicleResponse r = res.body();
                         if (r==null){ Toast.makeText(BusListActivity.this,"등록 실패(빈 응답).",Toast.LENGTH_SHORT).show(); return; }
                         saveSelectedVehicle(r.vehicleId, r.plateNo, r.routeId, r.routeName);
-                        updateSelectedCard();   // 기본값 + 캐시 색 시도
-                        loadRegistrations();     // list 로딩 후 applyMetaFromRegs 호출됨
-                        loadArrivalMeta();       // 실시간 보정
+                        updateSelectedCard();
+                        loadRegistrations();
+                        loadArrivalMeta();
                         Toast.makeText(BusListActivity.this, "등록 완료: " + r.plateNo, Toast.LENGTH_SHORT).show();
                         dialogToDismiss.dismiss();
                     }
@@ -536,26 +522,108 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
             showBusRegisterPopup();
             return;
         }
+
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(R.layout.popup_bus_confirm);
-        if (dialog.getWindow()!=null){
-            dialog.getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
-            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-        }
-        ((TextView)dialog.findViewById(R.id.tvBusNumber)).setText(selRouteName==null?"-":selRouteName);
-        ((TextView)dialog.findViewById(R.id.tvBusPlate)).setText(selPlateNo);
-        ((TextView)dialog.findViewById(R.id.tvBusRoute)).setText(selRouteName==null?"-":selRouteName);
 
-        dialog.findViewById(R.id.btn_cancel).setOnClickListener(v->dialog.dismiss());
-        dialog.findViewById(R.id.btn_ok).setOnClickListener(v->{
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            WindowManager.LayoutParams lp = dialog.getWindow().getAttributes();
+            lp.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.90f);
+            lp.height = WindowManager.LayoutParams.WRAP_CONTENT;
+            lp.gravity = android.view.Gravity.CENTER;
+            dialog.getWindow().setAttributes(lp);
+        }
+
+        // 카드 모서리 클리핑
+        MaterialCardView card = findFirstMaterialCardView(dialog);
+        if (card != null) {
+            card.setRadius(dp(18));
+            card.setClipToOutline(true);
+            card.setPreventCornerOverlap(false);
+        }
+
+        TextView tvRouteName  = dialog.findViewById(R.id.tvConfirmRouteName);
+        TextView tvRouteType  = dialog.findViewById(R.id.tvConfirmRouteType);
+        TextView tvPlate      = dialog.findViewById(R.id.tvConfirmPlate);
+        ImageView ivIcon      = dialog.findViewById(R.id.ivConfirmIcon);
+
+        tvRouteName.setText(selRouteName == null ? "-" : selRouteName);
+        tvPlate.setText(selPlateNo);
+
+        Integer code = findRouteTypeCodeInCache(selVehicleId);
+        String  label = findRouteTypeLabelInCache(selVehicleId);
+        if (code == null && label != null) code = labelToCode(label);
+        if (label == null && code != null) label = codeToLabel(code);
+
+        tvRouteType.setText(label == null ? "-" : label);
+
+        int color = routeTypeColor(code);
+        tvRouteName.setTextColor(color);
+        tvRouteType.setTextColor(color);
+
+        ViewCompat.setBackgroundTintList(
+                tvRouteType, android.content.res.ColorStateList.valueOf(adjustAlpha(color, 0.15f))
+        );
+        setRoundedIconBg(ivIcon, color, 12f);
+
+        dialog.findViewById(R.id.btn_cancel).setOnClickListener(v -> dialog.dismiss());
+        dialog.findViewById(R.id.btn_ok).setOnClickListener(v -> {
             dialog.dismiss();
             showSearchingPopup();
             startOperationWithLocationFlow();
         });
+
         dialog.show();
     }
 
+    /** 색상 투명도 보정(칩 배경) */
+    private int adjustAlpha(int color, float factor) {
+        int alpha = Math.round(android.graphics.Color.alpha(color) * factor);
+        return (color & 0x00FFFFFF) | (alpha << 24);
+    }
+
+    // 아이콘 배경 둥근 사각형
+    private void setRoundedIconBg(ImageView iv, int color, float radiusDp){
+        if (iv == null) return;
+        ViewCompat.setBackgroundTintList(iv, null);
+        ViewCompat.setBackgroundTintMode(iv, null);
+
+        android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
+        gd.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+        gd.setCornerRadius(dp(radiusDp));
+        gd.setColor(color);
+        gd.setStroke(1, color);
+
+        iv.setBackground(gd);
+        androidx.core.widget.ImageViewCompat.setImageTintList(
+                iv, android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
+        );
+    }
+
+    private @Nullable MaterialCardView findFirstMaterialCardView(Dialog d){
+        android.view.View content = d.findViewById(android.R.id.content);
+        if (!(content instanceof android.view.ViewGroup)) return null;
+        return findCardInTree((android.view.ViewGroup) ((android.view.ViewGroup)content).getChildAt(0));
+    }
+    private @Nullable MaterialCardView findCardInTree(@Nullable android.view.ViewGroup vg){
+        if (vg == null) return null;
+        if (vg instanceof MaterialCardView) return (MaterialCardView) vg;
+        for (int i=0;i<vg.getChildCount();i++){
+            android.view.View v = vg.getChildAt(i);
+            if (v instanceof MaterialCardView) return (MaterialCardView) v;
+            if (v instanceof android.view.ViewGroup){
+                MaterialCardView f = findCardInTree((android.view.ViewGroup) v);
+                if (f != null) return f;
+            }
+        }
+        return null;
+    }
+
+    private float dp(float v){ return v * getResources().getDisplayMetrics().density; }
+
+    // === 매칭 팝업 ===
     private void showSearchingPopup() {
         searchingDialog = new Dialog(this);
         searchingDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -564,7 +632,17 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
             searchingDialog.getWindow().setLayout(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT);
             searchingDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
-        searchingDialog.findViewById(R.id.cancelButton).setOnClickListener(v->dismissSearchingPopup());
+        TextView tv = searchingDialog.findViewById(R.id.subText);
+        if (tv != null) tv.setText("버스와 매칭 중…");
+
+        keepMatching = true;
+        matchAttempt = 0;
+
+        searchingDialog.findViewById(R.id.cancelButton).setOnClickListener(v->{
+            keepMatching = false;
+            clearPendingRetry();
+            dismissSearchingPopup();
+        });
         searchingDialog.setCancelable(false);
         searchingDialog.show();
     }
@@ -573,6 +651,7 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
         if (searchingDialog!=null && searchingDialog.isShowing()) searchingDialog.dismiss();
     }
 
+    // === 위치 + 매칭 플로우 ===
     private void startOperationWithLocationFlow() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -594,14 +673,17 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
                     })
                     .addOnFailureListener(e -> requestSingleFreshLocation());
 
+            // 8초 위치 타임아웃 (위치 못가져오면 팝업 닫기)
             handler.postDelayed(() -> {
-                if (!isFinishing() && searchingDialog != null && searchingDialog.isShowing()) {
+                if (!isFinishing() && searchingDialog != null && searchingDialog.isShowing() && (lastLat==null || lastLon==null)) {
+                    keepMatching = false;
                     dismissSearchingPopup();
                     Toast.makeText(this, "현재 위치를 가져오지 못했습니다. 잠시 후 다시 시도하세요.", Toast.LENGTH_SHORT).show();
                 }
             }, 8000);
 
         } catch (SecurityException se) {
+            keepMatching = false;
             dismissSearchingPopup();
             Toast.makeText(this, "위치 권한이 필요합니다.", Toast.LENGTH_SHORT).show();
         }
@@ -619,6 +701,7 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
                 if (result != null && result.getLastLocation() != null) {
                     onLocationReadyForStart(result.getLastLocation());
                 } else {
+                    keepMatching = false;
                     dismissSearchingPopup();
                     Toast.makeText(BusListActivity.this, "현재 위치를 가져오지 못했습니다.", Toast.LENGTH_SHORT).show();
                 }
@@ -630,47 +713,120 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
 
     private void onLocationReadyForStart(@Nullable Location loc) {
         if (loc == null) {
+            keepMatching = false;
             dismissSearchingPopup();
             Toast.makeText(this, "현재 위치를 가져오지 못했습니다.", Toast.LENGTH_SHORT).show();
             return;
         }
-        Double lat = loc.getLatitude(), lon = loc.getLongitude();
-        ApiService.StartOperationRequest body = new ApiService.StartOperationRequest(lat, lon, selVehicleId);
+        lastLat = loc.getLatitude();
+        lastLon = loc.getLongitude();
+        matchAttempt = 0;
+        tryStartOperation(lastLat, lastLon);
+    }
 
+    /** 매칭 시도 → 실패(502/404/네트워크) 시 keepMatching 동안 재시도 */
+    private void tryStartOperation(Double lat, Double lon) {
+        if (!keepMatching) return;
+
+        ApiService.StartOperationRequest body = new ApiService.StartOperationRequest(lat, lon, selVehicleId);
         api.startOperation(null, "DRIVER_APP", body)
                 .enqueue(new Callback<ApiService.StartOperationResponse>() {
                     @Override public void onResponse(Call<ApiService.StartOperationResponse> call,
                                                      Response<ApiService.StartOperationResponse> res) {
-                        dismissSearchingPopup();
-                        if (!res.isSuccessful()) {
-                            if (res.code()==409) Toast.makeText(BusListActivity.this,"이미 운행 중입니다. 먼저 종료하세요.",Toast.LENGTH_LONG).show();
-                            else if (res.code()==502 || res.code()==404) Toast.makeText(BusListActivity.this,"매칭 실패: 등록 차량/위치 확인.",Toast.LENGTH_LONG).show();
-                            else Toast.makeText(BusListActivity.this,"운행 시작 실패: " + res.code(),Toast.LENGTH_SHORT).show();
+                        if (res.isSuccessful() && res.body()!=null) {
+                            // 성공!
+                            clearPendingRetry();
+                            keepMatching = false;
+                            dismissSearchingPopup();
+
+                            ApiService.StartOperationResponse r = res.body();
+                            saveOperationId(r.operationId);
+                            tvSelectedStatus.setText("차량 상태: 정상 운행");
+                            Toast.makeText(BusListActivity.this,"운행 시작! " + (r.routeName==null?"":"("+r.routeName+")"),Toast.LENGTH_SHORT).show();
+
+                            Intent i = new Intent(BusListActivity.this, DrivingActivity.class);
+                            i.putExtra("operationId", r.operationId);
+                            i.putExtra("vehicleId", r.vehicleId);
+                            i.putExtra("routeId", r.routeId);
+                            i.putExtra("routeName", r.routeName);
+                            startActivity(i); finish();
                             return;
                         }
-                        ApiService.StartOperationResponse r = res.body();
-                        if (r==null){ Toast.makeText(BusListActivity.this,"운행 시작 실패(빈 응답).",Toast.LENGTH_SHORT).show(); return; }
-                        saveOperationId(r.operationId);
-                        tvSelectedStatus.setText("차량 상태: 정상 운행");
-                        Toast.makeText(BusListActivity.this,"운행 시작! " + (r.routeName==null?"":"("+r.routeName+")"),Toast.LENGTH_SHORT).show();
 
-                        Intent i = new Intent(BusListActivity.this, DrivingActivity.class);
-                        i.putExtra("operationId", r.operationId);
-                        i.putExtra("vehicleId", r.vehicleId);
-                        i.putExtra("routeId", r.routeId);
-                        i.putExtra("routeName", r.routeName);
-                        startActivity(i); finish();
+                        // 매칭 실패 코드 → 재시도
+                        if (res.code()==502 || res.code()==404) {
+                            scheduleRetry();
+                        } else if (res.code()==409) {
+                            // 이미 운행 중
+                            keepMatching = false;
+                            dismissSearchingPopup();
+                            Toast.makeText(BusListActivity.this,"이미 운행 중입니다. 먼저 종료하세요.",Toast.LENGTH_LONG).show();
+                        } else {
+                            // 기타 오류도 재시도 (원하면 여기서 중단해도 됨)
+                            scheduleRetry();
+                        }
                     }
+
                     @Override public void onFailure(Call<ApiService.StartOperationResponse> call, Throwable t) {
-                        dismissSearchingPopup();
-                        Toast.makeText(BusListActivity.this,"운행 시작 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        // 네트워크 오류 → 재시도
+                        scheduleRetry();
                     }
                 });
+    }
+
+    /** 재시도 예약 (지수 백오프 최대 5초, 3회마다 위치 새로고침) */
+    private void scheduleRetry() {
+        if (!keepMatching) return;
+        if (matchAttempt >= MAX_ATTEMPTS) {
+            keepMatching = false;
+            dismissSearchingPopup();
+            Toast.makeText(this, "매칭이 지연됩니다. 잠시 후 다시 시도하세요.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        matchAttempt++;
+        long delay = Math.min(5000, 1000L * (long)Math.pow(1.4, matchAttempt)); // 1s → 5s
+        if (searchingDialog!=null && searchingDialog.isShowing() && matchAttempt % 2 == 0) {
+            Toast.makeText(this, "매칭 재시도 중… ("+matchAttempt+")", Toast.LENGTH_SHORT).show();
+        }
+
+        clearPendingRetry();
+        pendingRetry = () -> {
+            if (!keepMatching) return;
+            // 3회마다 위치 최신화
+            if (matchAttempt % 3 == 0) {
+                try {
+                    fused.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, new CancellationTokenSource().getToken())
+                            .addOnSuccessListener(loc -> {
+                                if (!keepMatching) return;
+                                if (loc != null) {
+                                    lastLat = loc.getLatitude();
+                                    lastLon = loc.getLongitude();
+                                }
+                                tryStartOperation(lastLat, lastLon);
+                            })
+                            .addOnFailureListener(e -> tryStartOperation(lastLat, lastLon));
+                } catch (SecurityException ignored) {
+                    tryStartOperation(lastLat, lastLon);
+                }
+            } else {
+                tryStartOperation(lastLat, lastLon);
+            }
+        };
+        handler.postDelayed(pendingRetry, delay);
+    }
+
+    private void clearPendingRetry() {
+        if (pendingRetry != null) {
+            handler.removeCallbacks(pendingRetry);
+            pendingRetry = null;
+        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        keepMatching = false;
+        clearPendingRetry();
         if (currentCts != null) currentCts.cancel();
         if (singleCallback != null) fused.removeLocationUpdates(singleCallback);
         handler.removeCallbacksAndMessages(null);

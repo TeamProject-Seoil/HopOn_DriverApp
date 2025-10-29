@@ -1,0 +1,34 @@
+<!-- res/drawable/ic_timer.xml -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+
+    <!-- 본체 원 -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#111827"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,20a8,8 0,1 0,0 -16a8,8 0,1 0,0 16" />
+
+    <!-- 위쪽 손잡이(타이머 버튼) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#111827"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M9,3h6" />
+
+    <!-- 시침(12시) + 분침(오른쪽 아래) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#111827"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,7v5m0,0l3,3" />
+</vector>

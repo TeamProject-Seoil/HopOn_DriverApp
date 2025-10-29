@@ -1,0 +1,117 @@
+<!-- app/src/main/res/layout/item_driver_log_row.xml -->
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="10dp"
+    app:cardElevation="2dp"
+    android:foreground="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:weightSum="12">
+
+        <!-- 1열: 날짜(연/월 2줄) — 폭 2 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvColYear"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="2025"
+                android:textStyle="bold"
+                android:textColor="#222222"
+                android:textSize="12sp"
+                android:singleLine="true" />
+
+            <TextView
+                android:id="@+id/tvColMonth"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="10"
+                android:textStyle="bold"
+                android:textColor="#222222"
+                android:textSize="16sp"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <!-- 2열: 노선명 / 차량번호 (세로 2줄) — 폭 4 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="4"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvColRouteName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="3426"
+                android:textStyle="bold"
+                android:textColor="#111111"
+                android:textSize="14sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tvColPlate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="서울74사1785"
+                android:textColor="#6C737F"
+                android:textSize="12sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <!-- 3열: 노선유형(칩) — 폭 2 -->
+        <TextView
+            android:id="@+id/tvColRouteType"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:text="지선"
+            android:gravity="center"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:textSize="12sp"
+            android:textColor="#1E5199"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:background="@drawable/bg_route_chip"/>
+
+        <!-- 4열: 출발 — 폭 2 -->
+        <TextView
+            android:id="@+id/tvColStart"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:text="04:00"
+            android:gravity="center"
+            android:textColor="#333333"
+            android:textSize="13sp"
+            android:singleLine="true" />
+
+        <!-- 5열: 도착 — 폭 2 -->
+        <TextView
+            android:id="@+id/tvColEnd"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:text="04:01"
+            android:gravity="center"
+            android:textColor="#333333"
+            android:textSize="13sp"
+            android:singleLine="true" />
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

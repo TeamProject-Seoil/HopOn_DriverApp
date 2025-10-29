@@ -1,189 +1,157 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="@drawable/popup_background"
-    android:padding="0dp">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:padding="16dp">
 
-    <!-- 제목 -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:gravity="center"
-        android:background="#4B93FF"
-        android:text="버스 선택"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:textStyle="bold" />
-
-    <!-- 내용 -->
-    <LinearLayout
-        android:layout_width="match_parent"
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="320dp"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp"
-        android:divider="@drawable/divider_line"
-        android:showDividers="middle">
+        app:cardCornerRadius="18dp"
+        app:cardUseCompatPadding="true"
+        app:cardElevation="10dp">
 
-        <!-- 노선번호 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginTop="8dp">
+            android:orientation="vertical">
 
+            <!-- 타이틀(파란색 유지) -->
             <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="버스 노선번호"
-                android:textColor="#333333"
-                android:textSize="16sp"
-                android:textStyle="bold"/>
-
-            <TextView
-                android:id="@+id/tvBusNumber"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
                 android:gravity="center"
-                android:background="@drawable/info_box_bg"
-                android:text="-"
-                android:textColor="#111111"
-                android:textSize="16sp" />
-        </LinearLayout>
+                android:text="버스 선택"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:background="#4B93FF"/>
 
-        <!-- 차량번호 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginTop="10dp">
-
-            <TextView
-                android:layout_width="0dp"
+            <!-- 내용 -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="버스 차량번호"
-                android:textColor="#333333"
-                android:textSize="16sp"
-                android:textStyle="bold"/>
+                android:orientation="vertical"
+                android:padding="18dp"
+                android:showDividers="middle"
+                android:background="@color/white">
 
+                <!-- 첫 줄: 아이콘 + 노선명 + (오른쪽) 노선유형 칩 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:id="@+id/ivConfirmIcon"
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:src="@drawable/ic_bus_in"
+                        android:background="@drawable/bg_bus_circle"
+                        android:padding="10dp"
+                        android:contentDescription="@string/app_name"/>
+
+                    <TextView
+                        android:id="@+id/tvConfirmRouteName"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:text="-"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#111111"
+                        android:maxLines="1"
+                        android:ellipsize="end"/>
+
+                    <TextView
+                        android:id="@+id/tvConfirmRouteType"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:paddingTop="6dp"
+                        android:paddingBottom="6dp"
+                        android:text="-"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:textColor="#2563EB"
+                        android:background="@drawable/bg_route_chip"/>
+                </LinearLayout>
+
+                <!-- 둘째 줄: 차량번호 박스 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="차량번호"
+                        android:textColor="#333333"
+                        android:textSize="15sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:id="@+id/tvConfirmPlate"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:gravity="center"
+                        android:text="-"
+                        android:textColor="#111111"
+                        android:textSize="16sp"
+                        android:background="@drawable/info_box_bg"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- 안내 문구 -->
             <TextView
-                android:id="@+id/tvBusPlate"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:background="@drawable/info_box_bg"
-                android:text="-"
-                android:textColor="#111111"
-                android:textSize="16sp" />
-        </LinearLayout>
-
-        <!-- 노선명 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginTop="10dp">
-
-            <TextView
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="버스 노선"
-                android:textColor="#333333"
-                android:textSize="16sp"
-                android:textStyle="bold"/>
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:background="@color/white"
+                android:text="해당 버스를 운행하시겠습니까?"
+                android:textColor="#222222"
+                android:textSize="16sp"/>
 
-            <TextView
-                android:id="@+id/tvBusRoute"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:background="@drawable/info_box_bg"
-                android:text="-"
-                android:textColor="#111111"
-                android:textSize="16sp" />
-        </LinearLayout>
-
-        <!-- 차량 ID -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginTop="10dp">
-
-            <TextView
-                android:layout_width="0dp"
+            <!-- 버튼 -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="차량 ID"
-                android:textColor="#333333"
-                android:textSize="16sp"
-                android:textStyle="bold"/>
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:background="@color/white">
 
-            <TextView
-                android:id="@+id/tvVehicleIdConfirm"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:background="@drawable/info_box_bg"
-                android:text="-"
-                android:textColor="#111111"
-                android:textSize="16sp" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_cancel"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="취소"
+                    android:textAllCaps="false"
+                    app:strokeColor="#D1D5DB"
+                    app:strokeWidth="1dp"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_ok"
+                    style="@style/Widget.MaterialComponents.Button"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:text="확인"
+                    android:textAllCaps="false"
+                    app:backgroundTint="#4B93FF"
+                    app:cornerRadius="12dp"/>
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
-
-    <!-- 안내 -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="4dp"
-        android:gravity="center"
-        android:text="해당 버스를 운행하시겠습니까?"
-        android:textColor="#222222"
-        android:textSize="16sp" />
-
-    <!-- 버튼 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:weightSum="2"
-        android:padding="16dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="8dp">
-
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btn_cancel"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:text="취소"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold"
-            android:backgroundTint="#BDBDBD"
-            android:layout_marginEnd="6dp"
-            android:background="@drawable/btn_rounded_gray"/>
-
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btn_ok"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:text="확인"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold"
-            android:background="@drawable/btn_rounded_blue"/>
-    </LinearLayout>
-</LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+</FrameLayout>

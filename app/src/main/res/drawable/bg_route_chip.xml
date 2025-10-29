@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#E8F0FF"/> <!-- 기본 연파랑, 코드에서 tint로 덮어써도 됨 -->
+    <corners android:radius="999dp"/>
+</shape>
