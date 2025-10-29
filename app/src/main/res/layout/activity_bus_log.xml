@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="#F5F6FA">
 
-    <!-- 상단 헤더 -->
+    <!-- 헤더 -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/header"
         android:layout_width="0dp"
@@ -32,7 +32,7 @@
             android:id="@+id/tvTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="운행 버스 기록"
+            android:text="운행 기록"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
             android:textSize="20sp"
@@ -42,194 +42,28 @@
             app:layout_constraintEnd_toEndOf="parent"/>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- 구분선 -->
-    <View
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvLogs"
         android:layout_width="0dp"
-        android:layout_height="1dp"
-        android:background="#1F000000"
+        android:layout_height="0dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:clipToPadding="false"
         app:layout_constraintTop_toBottomOf="@id/header"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- 내용 카드 -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/cardDetail"
-        android:layout_width="0dp"
+    <TextView
+        android:id="@+id/tvEmpty"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginTop="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="5dp"
-        app:cardBackgroundColor="@android:color/white"
+        android:text="종료된 운행 기록이 없습니다."
+        android:textColor="#6B7280"
+        android:textSize="14sp"
+        android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@id/header"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp">
-
-            <!-- 버스 정보 헤더 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:id="@+id/lblBus"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="버스"
-                    android:textColor="#222222"
-                    android:textSize="15sp" />
-
-                <TextView
-                    android:id="@+id/tvBusNumber"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="320번"
-                    android:textStyle="bold"
-                    android:textColor="#4B93FF"
-                    android:textSize="20sp"
-                    android:layout_marginStart="8dp" />
-
-                <TextView
-                    android:id="@+id/tvBusRun"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text=" (2848)"
-                    android:textColor="#777777"
-                    android:textSize="13sp"
-                    android:layout_marginStart="4dp"/>
-            </LinearLayout>
-
-            <!-- 저상 여부 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:id="@+id/lblLow"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="저상 여부"
-                    android:textColor="#444444"
-                    android:textSize="15sp" />
-
-                <TextView
-                    android:id="@+id/tvLowFloor"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="저상"
-                    android:textColor="#12805A"
-                    android:textSize="13sp"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="4dp"
-                    android:layout_marginStart="10dp"
-                    android:background="@drawable/bg_chip_green" />
-            </LinearLayout>
-
-            <!-- 노선 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:id="@+id/lblRoute"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="노선"
-                    android:textColor="#444444"
-                    android:textSize="15sp" />
-
-                <TextView
-                    android:id="@+id/tvRoute"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="북정환승센터 방면"
-                    android:textColor="#111111"
-                    android:textSize="15sp"
-                    android:layout_marginStart="10dp" />
-            </LinearLayout>
-
-            <!-- 구분선 -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="14dp"
-                android:layout_marginBottom="14dp"
-                android:background="#E0E0E0"/>
-
-            <!-- 운행 시간 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:weightSum="2">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="운행 시작"
-                        android:textSize="14sp"
-                        android:textColor="#555555" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:id="@+id/tvStartTime"
-                        android:text="05:41"
-                        android:textStyle="bold"
-                        android:textSize="20sp"
-                        android:textColor="#111111"
-                        android:layout_marginTop="4dp"/>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="운행 종료"
-                        android:textSize="14sp"
-                        android:textColor="#555555" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:id="@+id/tvEndTime"
-                        android:text="08:21"
-                        android:textStyle="bold"
-                        android:textSize="20sp"
-                        android:textColor="#111111"
-                        android:layout_marginTop="4dp"/>
-                </LinearLayout>
-            </LinearLayout>
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
-
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="20dp"/>
 </androidx.constraintlayout.widget.ConstraintLayout>
-
-

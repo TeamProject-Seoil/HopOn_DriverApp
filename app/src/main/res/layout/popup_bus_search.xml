@@ -11,14 +11,15 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="24dp"
-        android:gravity="center">
+        android:gravity="center"
+        android:background="@color/white">
 
         <!-- 메인 타이틀 -->
         <TextView
             android:id="@+id/titleText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="운행 버스 탐색 중…"
+            android:text="운행 버스 탐색"
             android:textSize="20sp"
             android:textStyle="bold"
             android:textColor="#111111"

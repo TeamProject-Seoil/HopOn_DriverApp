@@ -1,3 +1,4 @@
+// app/src/main/java/com/example/driver_bus_info/service/ApiService.java
 package com.example.driver_bus_info.service;
 
 import com.example.driver_bus_info.dto.ArrivalDto;
@@ -19,7 +20,7 @@ import retrofit2.http.*;
 
 /**
  * Retrofit2 API 정의 (통합)
- * - 버스/인증/회원/예약/면허 + 공지/문의 + 드라이버 운행 + 등록 이력
+ * - 버스/인증/회원/예약/면허 + 공지/문의 + 드라이버 운행 + 등록 이력 + 운행 기록(페이징)
  */
 public interface ApiService {
 
@@ -113,7 +114,7 @@ public interface ApiService {
         public boolean hasProfileImage;
         public String company, approvalStatus;
         public boolean hasDriverLicenseFile;
-        @SerializedName(value = "lastLoginAtIso",  alternate = {"lastLoginAt"})  public String lastLoginAtIso;
+        @SerializedName(value = "lastLoginAtIso",   alternate = {"lastLoginAt"})   public String lastLoginAtIso;
         @SerializedName(value = "lastRefreshAtIso", alternate = {"lastRefreshAt"}) public String lastRefreshAtIso;
     }
     class LogoutRequest {
@@ -175,9 +176,12 @@ public interface ApiService {
     // =========================================================
     // =============== 공통 Page 응답 (공지/문의) ================
     // =========================================================
+    /** 서버가 page 또는 number 중 무엇을 내려줘도 매핑되도록 처리 */
     class PageResponse<T> {
         public List<T> content;
-        public int number, size, totalPages;
+        @SerializedName(value = "page", alternate = {"number"})
+        public int page;
+        public int size, totalPages;
         public long totalElements;
         public boolean first, last;
     }
@@ -285,7 +289,7 @@ public interface ApiService {
                                     @Part List<MultipartBody.Part> files);
 
     // =========================================================
-    // =================== 드라이버 운행(신규) ===================
+    // =================== 드라이버 운행 ========================
     // =========================================================
 
     /** 기사-차량 배정(등록): vehicleId 또는 plateNo 중 하나 */
@@ -390,8 +394,7 @@ public interface ApiService {
         public String routeId;
         public String routeName;
         public String createdAt;
-
-        // ▼ 백엔드가 내려주는 메타 (저상 제거)
+        // 백엔드 메타(저상 제거, 노선유형만)
         public Integer routeTypeCode;
         public String  routeTypeLabel;
     }
@@ -418,12 +421,66 @@ public interface ApiService {
         public String currentStopName;   // 이번 정류장
         public String nextStopName;      // 다음 정류장
         public Integer etaSec;           // 다음 정류장까지 남은 초(없으면 null)
-
-        // ▼ 백엔드 추가 필드 (저상 제거)
+        // 백엔드 추가 필드
         public Integer routeTypeCode;    // 서울시 busRouteType 코드 (null 가능)
         public String  routeTypeLabel;   // 라벨(간선/지선/…)
     }
 
     @GET("/api/driver/operations/arrival-now")
     Call<ArrivalNowResponse> arrivalNow(@Header("Authorization") String bearer);
+
+    // =========================================================
+    // ================ 운행 기록(페이징/엔디드) =================
+    // =========================================================
+
+    /** 운행 목록(상태별) 페이징
+     *  예: /api/driver/operations?status=ENDED&page=0&size=20&sort=endedAt,desc
+     */
+    class DriverOperationListItem {
+        public Long id;
+        public String routeId, routeName;
+        public String vehicleId, plateNo;
+        public String startedAt, endedAt;    // ISO 문자열
+        public Integer routeTypeCode;        // 선택
+        public String  routeTypeLabel;       // 선택
+    }
+
+    @GET("/api/driver/operations")
+    Call<PageResponse<DriverOperationListItem>> getDriverOperations(
+            @Header("Authorization") String bearer,
+            @Header("X-Client-Type") String clientType,
+            @Query("status") String status,         // "ENDED" | "RUNNING" | null(전체)
+            @Query("page")   int page,
+            @Query("size")   int size,
+            @Query("sort")   String sort            // "endedAt,desc" 등
+    );
+
+    /** (구) 종료된 운행 전체 조회 (백엔드 유지 시) */
+    class DriverOperationResp {
+        public Long id;
+        public Long userNum;
+        public String vehicleId;
+        public String routeId, routeName;
+        public String apiVehId, apiPlainNo;
+        public String status;         // RUNNING | ENDED
+        public String startedAt, endedAt;
+        public Double lastLat, lastLon;
+        public String updatedAt;
+        public Integer routeTypeCode; // 선택
+        public String  routeTypeLabel;// 선택
+    }
+
+    @GET("/api/driver/operations/ended")
+    Call<List<DriverOperationResp>> getEndedOperations(
+            @Header("Authorization") String bearer,
+            @Header("X-Client-Type") String clientType
+    );
+
+    /** 종료된 운행 단건 조회 */
+    @GET("/api/driver/operations/ended/{operationId}")
+    Call<DriverOperationResp> getEndedOperation(
+            @Header("Authorization") String bearer,
+            @Header("X-Client-Type") String clientType,
+            @Path("operationId") Long operationId
+    );
 }

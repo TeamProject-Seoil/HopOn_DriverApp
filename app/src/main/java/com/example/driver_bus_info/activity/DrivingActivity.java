@@ -41,17 +41,30 @@ public class DrivingActivity extends AppCompatActivity {
     private static final String PREF = "driver_prefs";
     private static final String K_OPERATION_ID = "sel_operation_id";
     private static final String K_PLATE_NO     = "sel_plate_no";
+    private static final String K_STARTED_AT   = "operation_started_at";
 
     private ApiService api;
 
-    // 상단 2열
-    private TextView tvRouteName, tvPlateNo, tvRouteId, tvVehicleId;
-
-    // 정류장 안내(세로 배치)
-    private TextView tvCurrentStop, tvNextStop;
-
+    // 상단
+    private TextView tvRouteName, tvPlateNo, tvRouteType;
     private ImageView imgBusIcon;
     private LinearLayout colorHeaderBarContainer; // 승객 카드 헤더 틴트
+
+    // 정류장 안내
+    private TextView tvCurrentStop, tvNextStop;
+
+    // 총 운행시간
+    private TextView tvTotalDriveTime;
+    private final Handler timerHandler = new Handler();
+    private long operationStartedAtMs = 0L;
+    private final Runnable timerTick = new Runnable() {
+        @Override public void run() {
+            long base = (operationStartedAtMs == 0L) ? System.currentTimeMillis() : operationStartedAtMs;
+            long elapsed = Math.max(0L, System.currentTimeMillis() - base);
+            tvTotalDriveTime.setText(formatHms(elapsed));
+            timerHandler.postDelayed(this, 1000);
+        }
+    };
 
     private Button btnDelay, btnDriveEnd;
     private boolean isDelayActive = false;
@@ -105,11 +118,19 @@ public class DrivingActivity extends AppCompatActivity {
 
         tvRouteName = findViewById(R.id.tvRouteName);
         tvPlateNo   = findViewById(R.id.tvPlateNo);
-        tvRouteId   = findViewById(R.id.tvRouteId);
-        tvVehicleId = findViewById(R.id.tvVehicleId);
+        tvRouteType = findViewById(R.id.tvRouteType);
 
         tvCurrentStop = findViewById(R.id.tvCurrentStop);
         tvNextStop    = findViewById(R.id.tvNextStop);
+
+        // 총 운행시간 뷰
+        tvTotalDriveTime = findViewById(R.id.tvTotalDriveTime);
+        // 저장된 시작 시각 복구(없으면 지금 시각으로 세팅)
+        operationStartedAtMs = sp.getLong(K_STARTED_AT, 0L);
+        if (operationStartedAtMs == 0L) {
+            operationStartedAtMs = System.currentTimeMillis();
+            sp.edit().putLong(K_STARTED_AT, operationStartedAtMs).apply();
+        }
 
         btnDelay    = findViewById(R.id.btnDelay);
         btnDriveEnd = findViewById(R.id.btnDriveEnd);
@@ -117,8 +138,7 @@ public class DrivingActivity extends AppCompatActivity {
         // 상단 값 세팅
         tvRouteName.setText(routeName == null ? "-" : routeName);
         tvPlateNo.setText(plateNo == null ? "-" : plateNo);
-        tvRouteId.setText(routeId == null ? "-" : routeId);
-        tvVehicleId.setText(vehicleId == null ? "-" : vehicleId);
+        tvRouteType.setText("-"); // 첫 렌더링 기본값
 
         // 지연 버튼 토글
         btnDelay.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#BFC3CC")));
@@ -168,12 +188,19 @@ public class DrivingActivity extends AppCompatActivity {
         startLocationUpdates();
         arrivalHandler.removeCallbacksAndMessages(null);
         arrivalHandler.post(arrivalPollTask);
+
+        // 타이머 시작
+        timerHandler.removeCallbacksAndMessages(null);
+        timerHandler.post(timerTick);
     }
 
     @Override protected void onPause() {
         super.onPause();
         stopLocationUpdates();
         arrivalHandler.removeCallbacksAndMessages(null);
+
+        // 타이머 일시중지
+        timerHandler.removeCallbacksAndMessages(null);
     }
 
     @Override protected void onDestroy() {
@@ -181,6 +208,9 @@ public class DrivingActivity extends AppCompatActivity {
         stopLocationUpdates();
         arrivalHandler.removeCallbacksAndMessages(null);
         demoHandler.removeCallbacksAndMessages(null);
+
+        // 타이머 정지
+        timerHandler.removeCallbacksAndMessages(null);
     }
 
     private void fetchArrivalNow() {
@@ -192,18 +222,24 @@ public class DrivingActivity extends AppCompatActivity {
                 if (!res.isSuccessful() || res.body() == null) return;
                 ApiService.ArrivalNowResponse r = res.body();
 
+                // 1) 상단 노선유형 -> 색/칩/아이콘 동기화
+                String label = (r.routeTypeLabel != null && !r.routeTypeLabel.isBlank())
+                        ? r.routeTypeLabel : codeToLabel(r.routeTypeCode);
+                Integer code = (r.routeTypeCode != null) ? r.routeTypeCode : labelToCode(label);
+                if (label != null) tvRouteType.setText(label);
+                if (code != null) applyRouteTypeColor(code);
+
+                // 2) 정류장 표시
                 String cur  = (r.currentStopName == null || r.currentStopName.isEmpty()) ? "-" : r.currentStopName;
                 String next = (r.nextStopName == null || r.nextStopName.isEmpty()) ? "-" : r.nextStopName;
 
                 if (r.etaSec != null) {
-                    if (r.etaSec <= 0) next = next + " (곧 도착)";
+                    if (r.etaSec <= 0) next = next + "  ·  곧 도착";
                     else {
                         int min = Math.max(1, (int)Math.round(r.etaSec / 60.0));
-                        next = next + " (" + min + "분)";
+                        next = next + "  ·  약 " + min + "분";
                     }
                 }
-
-                // 중앙정렬 카드에 값만 채움
                 tvCurrentStop.setText(cur);
                 tvNextStop.setText(next);
             }
@@ -242,13 +278,10 @@ public class DrivingActivity extends AppCompatActivity {
 
         Window w = dialog.getWindow();
         if (w != null) {
-            // 배경을 투명으로 하고, 크기는 내용물에 맞추고, 중앙 정렬
             w.setBackgroundDrawableResource(android.R.color.transparent);
             w.setLayout(WindowManager.LayoutParams.WRAP_CONTENT,
                     WindowManager.LayoutParams.WRAP_CONTENT);
             w.setGravity(android.view.Gravity.CENTER);
-            // 필요 시 살짝 애니메이션(옵션)
-            // w.setWindowAnimations(android.R.style.Animation_Dialog);
         }
 
         Button btnCancel = dialog.findViewById(R.id.cancel_button);
@@ -263,7 +296,6 @@ public class DrivingActivity extends AppCompatActivity {
         dialog.show();
     }
 
-
     private void callEndOperation(Dialog dialogToDismiss) {
         api.endOperation(null, "DRIVER_APP", new ApiService.EndOperationRequest(""))
                 .enqueue(new Callback<Map<String, Object>>() {
@@ -274,8 +306,14 @@ public class DrivingActivity extends AppCompatActivity {
                             if (dialogToDismiss != null) dialogToDismiss.dismiss();
                             return;
                         }
-                        SharedPreferences sp = getSharedPreferences("driver_prefs", MODE_PRIVATE);
-                        sp.edit().remove("sel_operation_id").apply();
+                        SharedPreferences sp = getSharedPreferences(PREF, MODE_PRIVATE);
+                        sp.edit()
+                                .remove(K_OPERATION_ID)
+                                .remove(K_STARTED_AT)        // ★ 타이머 기준시각 제거
+                                .apply();
+
+                        // 타이머 정지
+                        timerHandler.removeCallbacksAndMessages(null);
 
                         Toast.makeText(DrivingActivity.this, "운행이 종료되었습니다.", Toast.LENGTH_SHORT).show();
 
@@ -291,6 +329,92 @@ public class DrivingActivity extends AppCompatActivity {
                         if (dialogToDismiss != null) dialogToDismiss.dismiss();
                     }
                 });
+    }
+
+    // ==== 스타일 유틸 ====
+    private void applyRouteTypeColor(Integer code){
+        int color = routeTypeColor(code);
+        tvRouteName.setTextColor(color);
+        tvRouteType.setTextColor(color);
+        // 칩 배경 옅은 톤
+        tvRouteType.setBackgroundTintList(ColorStateList.valueOf(adjustAlpha(color, 0.15f)));
+        // 아이콘 배경을 둥근 사각형으로
+        setRoundedIconBg(imgBusIcon, color, 12f);
+    }
+
+    private int routeTypeColor(Integer code) {
+        if (code == null) return Color.parseColor("#6B7280"); // 기타
+        switch (code) {
+            case 1: return Color.parseColor("#0288D1"); // 공항
+            case 2: return Color.parseColor("#6A1B9A"); // 마을
+            case 3: return Color.parseColor("#1976D2"); // 간선
+            case 4: return Color.parseColor("#2E7D32"); // 지선
+            case 5: return Color.parseColor("#F9A825"); // 순환
+            case 6: return Color.parseColor("#C62828"); // 광역
+            case 7: return Color.parseColor("#1565C0"); // 인천
+            case 8: return Color.parseColor("#00695C"); // 경기
+            case 9: return Color.parseColor("#374151"); // 폐지
+            case 0:
+            default: return Color.parseColor("#6B7280"); // 공용/기타
+        }
+    }
+
+    private String codeToLabel(Integer code) {
+        if (code == null) return null;
+        switch (code) {
+            case 1: return "공항";
+            case 2: return "마을";
+            case 3: return "간선";
+            case 4: return "지선";
+            case 5: return "순환";
+            case 6: return "광역";
+            case 7: return "인천";
+            case 8: return "경기";
+            case 9: return "폐지";
+            case 0: return "공용";
+            default: return "기타";
+        }
+    }
+    private Integer labelToCode(String label){
+        if (label == null) return null;
+        switch (label.trim()){
+            case "공항": return 1;
+            case "마을": return 2;
+            case "간선": return 3;
+            case "지선": return 4;
+            case "순환": return 5;
+            case "광역": return 6;
+            case "인천": return 7;
+            case "경기": return 8;
+            case "폐지": return 9;
+            case "공용": return 0;
+            default: return null;
+        }
+    }
+    private int adjustAlpha(int color, float factor) {
+        int alpha = Math.round(Color.alpha(color) * factor);
+        return (color & 0x00FFFFFF) | (alpha << 24);
+    }
+    private void setRoundedIconBg(ImageView iv, int color, float radiusDp){
+        if (iv == null) return;
+        android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
+        gd.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+        gd.setCornerRadius(radiusDp * getResources().getDisplayMetrics().density);
+        gd.setColor(color);
+        gd.setStroke(1, color);
+        iv.setBackground(gd);
+        androidx.core.widget.ImageViewCompat.setImageTintList(
+                iv, ColorStateList.valueOf(Color.WHITE)
+        );
+    }
+
+    // ==== 유틸: 경과시간 포맷 ====
+    private String formatHms(long ms){
+        long totalSec = ms / 1000;
+        long h = totalSec / 3600;
+        long m = (totalSec % 3600) / 60;
+        long s = totalSec % 60;
+        return String.format("%02d:%02d:%02d", h, m, s);
     }
 
     // 데모 틴트
