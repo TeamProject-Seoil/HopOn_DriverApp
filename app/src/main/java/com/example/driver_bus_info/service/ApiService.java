@@ -489,31 +489,30 @@ public interface ApiService {
     );
 
     // ===== 승객 현황 =====
-    @GET("/api/driver/passengers/now")
-    Call<DriverPassengerListResponse> getPassengersNow(
-            @Header("Authorization") String bearer
+    @GET("/api/driver/passengers")
+    Call<ApiService.DriverPassengerListResponse> getDriverPassengers(
+            @Header("Authorization") String bearer,
+            @Header("Client-Type") String clientType
     );
 
     // ===== DTOs =====
-    class DriverPassengerListResponse {
-        public Long operationId;
+    public static class DriverPassengerListResponse {
+        public Long   operationId;
         public String routeId;
         public String routeName;
         public Integer count;
         public List<DriverPassengerDto> items;
     }
-    class DriverPassengerDto {
-        public Long reservationId;
-        public Long userNum;
+    public static class DriverPassengerDto {
+        public Long   reservationId;
+        public Long   userNum;
         public String username;
-        public String userid;
-
+        public String userid;             // ← 여기! DrivingActivity에서 이 이름을 씁니다.
         public String boardingStopId;
         public String boardingStopName;
         public String alightingStopId;
         public String alightingStopName;
-
-        public String status;        // CONFIRMED / BOARDED
+        public String status;
         public String createdAtIso;
         public String updatedAtIso;
     }
