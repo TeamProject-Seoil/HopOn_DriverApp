@@ -32,12 +32,15 @@ public interface ApiService {
                                            @Query("y") double y,
                                            @Query("radius") int radius);
 
+    /** 현재 정류장 도착 정보 (서울시 getStationByUid 기반) */
     @GET("/api/stationStop")
     Call<List<ArrivalDto>> getStationArrivals(@Query("arsId") String arsId);
 
+    /** 노선의 실시간 차량 위치 (서울시 getBusPosByRtid 기반) */
     @GET("/api/busLocation")
     Call<List<BusLocationDto>> getBusLocation(@Query("busRouteId") String busRouteId);
 
+    /** 노선의 정류장 리스트 (서울시 getStaionByRoute 기반) */
     @GET("/api/busStopList")
     Call<List<BusRouteDto>> getBusRoute(@Query("busRouteId") String busRouteId);
 
@@ -393,8 +396,9 @@ public interface ApiService {
         public String plateNo;
         public String routeId;
         public String routeName;
+        @SerializedName(value = "createdAtIso", alternate = {"createdAt"})
         public String createdAt;
-        // 백엔드 메타(저상 제거, 노선유형만)
+        // 백엔드 메타(노선유형)
         public Integer routeTypeCode;
         public String  routeTypeLabel;
     }
@@ -455,7 +459,7 @@ public interface ApiService {
             @Query("sort")   String sort            // "endedAt,desc" 등
     );
 
-    /** (구) 종료된 운행 전체 조회 (백엔드 유지 시) */
+    /** (구) 종료된 운행 전체 조회 */
     class DriverOperationResp {
         public Long id;
         public Long userNum;
@@ -483,4 +487,34 @@ public interface ApiService {
             @Header("X-Client-Type") String clientType,
             @Path("operationId") Long operationId
     );
+
+    // ===== 승객 현황 =====
+    @GET("/api/driver/passengers/now")
+    Call<DriverPassengerListResponse> getPassengersNow(
+            @Header("Authorization") String bearer
+    );
+
+    // ===== DTOs =====
+    class DriverPassengerListResponse {
+        public Long operationId;
+        public String routeId;
+        public String routeName;
+        public Integer count;
+        public List<DriverPassengerDto> items;
+    }
+    class DriverPassengerDto {
+        public Long reservationId;
+        public Long userNum;
+        public String username;
+        public String userid;
+
+        public String boardingStopId;
+        public String boardingStopName;
+        public String alightingStopId;
+        public String alightingStopName;
+
+        public String status;        // CONFIRMED / BOARDED
+        public String createdAtIso;
+        public String updatedAtIso;
+    }
 }

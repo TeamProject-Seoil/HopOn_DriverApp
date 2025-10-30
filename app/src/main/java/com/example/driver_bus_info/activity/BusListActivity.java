@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/driver_bus_info/activity/BusListActivity.java
 package com.example.driver_bus_info.activity;
 
 import android.Manifest;

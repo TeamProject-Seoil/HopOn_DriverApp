@@ -157,7 +157,7 @@ public class RegistrationAdapter extends RecyclerView.Adapter<RegistrationAdapte
         final CardView card;
         final ImageView ivBusIcon;
         final TextView tvRouteName, tvRouteType, tvPlate;
-        final TextView badgeSelected;           // ⭐ 추가
+        final TextView badgeSelected;           // 선택 배지
         final ImageButton btnRemove;
         VH(@NonNull View v){
             super(v);
@@ -166,7 +166,7 @@ public class RegistrationAdapter extends RecyclerView.Adapter<RegistrationAdapte
             tvRouteName   = v.findViewById(R.id.tvRouteName);
             tvRouteType   = v.findViewById(R.id.tvRouteType);
             tvPlate       = v.findViewById(R.id.tvPlate);
-            badgeSelected = v.findViewById(R.id.badgeSelected); // ⭐
+            badgeSelected = v.findViewById(R.id.badgeSelected);
             btnRemove     = v.findViewById(R.id.btnRemove);
         }
     }

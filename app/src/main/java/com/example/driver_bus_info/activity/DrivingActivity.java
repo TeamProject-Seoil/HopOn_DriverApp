@@ -1,3 +1,4 @@
+// app/src/main/java/com/example/driver_bus_info/activity/DrivingActivity.java
 package com.example.driver_bus_info.activity;
 
 import android.Manifest;
@@ -9,8 +10,12 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.TextUtils;
+import android.view.LayoutInflater;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -19,6 +24,9 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.core.widget.ImageViewCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.driver_bus_info.R;
 import com.example.driver_bus_info.service.ApiClient;
@@ -30,6 +38,8 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -38,20 +48,26 @@ import retrofit2.Response;
 
 public class DrivingActivity extends AppCompatActivity {
 
-    private static final String PREF = "driver_prefs";
-    private static final String K_OPERATION_ID = "sel_operation_id";
-    private static final String K_PLATE_NO     = "sel_plate_no";
-    private static final String K_STARTED_AT   = "operation_started_at";
+    // ===== Local prefs keys =====
+    private static final String PREF          = "driver_prefs";
+    private static final String K_OPERATION_ID= "sel_operation_id";
+    private static final String K_PLATE_NO    = "sel_plate_no";
+    private static final String K_STARTED_AT  = "operation_started_at";
 
     private ApiService api;
 
     // 상단
     private TextView tvRouteName, tvPlateNo, tvRouteType;
     private ImageView imgBusIcon;
-    private LinearLayout colorHeaderBarContainer; // 승객 카드 헤더 틴트
+    private LinearLayout colorHeaderBarContainer; // 승객 카드 헤더 틴트(데모)
 
     // 정류장 안내
     private TextView tvCurrentStop, tvNextStop;
+
+    // 승객 현황
+    private RecyclerView rvPassengers;
+    private PassengersAdapter passengersAdapter = new PassengersAdapter();
+    private TextView tvBoardingNum, tvDropoffNum;
 
     // 총 운행시간
     private TextView tvTotalDriveTime;
@@ -69,27 +85,32 @@ public class DrivingActivity extends AppCompatActivity {
     private Button btnDelay, btnDriveEnd;
     private boolean isDelayActive = false;
 
+    // 인텐트/상태
     private Long   operationId;
     private String vehicleId;
     private String routeId;
     private String routeName;
     private String plateNo;
 
+    // 위치 & 하트비트
     private FusedLocationProviderClient fused;
     private LocationCallback locationCallback;
     private boolean sendingHeartbeat = false;
     private long lastSentMs = 0L;
     private static final long HEARTBEAT_MIN_INTERVAL_MS = 3000L;
 
+    // 이번/다음 정류장 + 승객 폴링
     private final Handler arrivalHandler = new Handler();
-    private final long ARRIVAL_POLL_MS = 10_000L;
+    private static final long ARRIVAL_POLL_MS = 10_000L;
     private final Runnable arrivalPollTask = new Runnable() {
         @Override public void run() {
-            fetchArrivalNow();
+            fetchArrivalNow();     // 이번/다음 정류장 + 노선유형
+            fetchPassengersNow();  // 승객 목록 + 카운터
             arrivalHandler.postDelayed(this, ARRIVAL_POLL_MS);
         }
     };
 
+    // 데모용
     private final Handler demoHandler = new Handler();
 
     @Override
@@ -100,6 +121,7 @@ public class DrivingActivity extends AppCompatActivity {
         api = ApiClient.get(getApplicationContext());
         fused = LocationServices.getFusedLocationProviderClient(this);
 
+        // 인텐트/로컬 상태 복구
         Intent i = getIntent();
         operationId = (i != null && i.hasExtra("operationId")) ? i.getLongExtra("operationId", -1) : -1;
         vehicleId   = (i != null) ? i.getStringExtra("vehicleId") : null;
@@ -113,6 +135,7 @@ public class DrivingActivity extends AppCompatActivity {
         }
         plateNo = sp.getString(K_PLATE_NO, "-");
 
+        // 뷰 바인딩
         imgBusIcon  = findViewById(R.id.imgBusIcon);
         colorHeaderBarContainer = findViewById(R.id.passengerHeaderTint);
 
@@ -123,9 +146,21 @@ public class DrivingActivity extends AppCompatActivity {
         tvCurrentStop = findViewById(R.id.tvCurrentStop);
         tvNextStop    = findViewById(R.id.tvNextStop);
 
-        // 총 운행시간 뷰
         tvTotalDriveTime = findViewById(R.id.tvTotalDriveTime);
-        // 저장된 시작 시각 복구(없으면 지금 시각으로 세팅)
+
+        // 승객 카드 내 카운터
+        tvBoardingNum = findViewById(R.id.tvBoardingNum);
+        tvDropoffNum  = findViewById(R.id.tvDropoffNum);
+
+        // 승객 RecyclerView
+        rvPassengers = findViewById(R.id.rvPassengers);
+        if (rvPassengers != null) {
+            rvPassengers.setLayoutManager(new LinearLayoutManager(this));
+            rvPassengers.setAdapter(passengersAdapter);
+            rvPassengers.setNestedScrollingEnabled(false);
+        }
+
+        // 운행시간 기준시각 복구(처음이면 지금 시각 저장)
         operationStartedAtMs = sp.getLong(K_STARTED_AT, 0L);
         if (operationStartedAtMs == 0L) {
             operationStartedAtMs = System.currentTimeMillis();
@@ -135,7 +170,7 @@ public class DrivingActivity extends AppCompatActivity {
         btnDelay    = findViewById(R.id.btnDelay);
         btnDriveEnd = findViewById(R.id.btnDriveEnd);
 
-        // 상단 값 세팅
+        // 상단 기본 표시
         tvRouteName.setText(routeName == null ? "-" : routeName);
         tvPlateNo.setText(plateNo == null ? "-" : plateNo);
         tvRouteType.setText("-"); // 첫 렌더링 기본값
@@ -151,55 +186,63 @@ public class DrivingActivity extends AppCompatActivity {
             isDelayActive = !isDelayActive;
         });
 
+        // 운행 종료
         btnDriveEnd.setOnClickListener(v -> showDriveEndPopup());
 
+        // 하트비트 콜백
         locationCallback = new LocationCallback() {
             @Override public void onLocationResult(LocationResult result) {
                 if (result == null || result.getLastLocation() == null) return;
-                double lat = result.getLastLocation().getLatitude();
-                double lon = result.getLastLocation().getLongitude();
-
                 if (!sendingHeartbeat) return;
+
                 long now = System.currentTimeMillis();
                 if (now - lastSentMs < HEARTBEAT_MIN_INTERVAL_MS) return;
                 lastSentMs = now;
 
+                double lat = result.getLastLocation().getLatitude();
+                double lon = result.getLastLocation().getLongitude();
+
                 api.heartbeat(null, "DRIVER_APP",
                                 new ApiService.HeartbeatRequest(lat, lon))
                         .enqueue(new Callback<Map<String, Object>>() {
-                            @Override public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> res) { }
-                            @Override public void onFailure (Call<Map<String, Object>> call, Throwable t) { }
+                            @Override public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> res) { /* noop */ }
+                            @Override public void onFailure (Call<Map<String, Object>> call, Throwable t) { /* noop */ }
                         });
             }
         };
 
+        // 방어: operationId 없으면 메인으로 복귀
         if (operationId == null || operationId <= 0) {
             startActivity(new Intent(this, MainActivity.class));
             finish();
             return;
         }
 
-        // 데모: 정차 틴트
+        // 데모: 5초 후 상단 바 틴트 on/off
         demoHandler.postDelayed(this::simulateStopSignalOn, 5000);
     }
 
     @Override protected void onResume() {
         super.onResume();
         startLocationUpdates();
+
+        // 이번/다음 정류장 & 승객 폴링 시작 (DB/공공 API 합성 응답)
         arrivalHandler.removeCallbacksAndMessages(null);
         arrivalHandler.post(arrivalPollTask);
 
         // 타이머 시작
         timerHandler.removeCallbacksAndMessages(null);
         timerHandler.post(timerTick);
+
+        // 즉시 1회 정보 갱신
+        fetchArrivalNow();
+        fetchPassengersNow();
     }
 
     @Override protected void onPause() {
         super.onPause();
         stopLocationUpdates();
         arrivalHandler.removeCallbacksAndMessages(null);
-
-        // 타이머 일시중지
         timerHandler.removeCallbacksAndMessages(null);
     }
 
@@ -208,11 +251,10 @@ public class DrivingActivity extends AppCompatActivity {
         stopLocationUpdates();
         arrivalHandler.removeCallbacksAndMessages(null);
         demoHandler.removeCallbacksAndMessages(null);
-
-        // 타이머 정지
         timerHandler.removeCallbacksAndMessages(null);
     }
 
+    // ===== 이번/다음 정류장 + 노선유형(DB 캐시 기반) =====
     private void fetchArrivalNow() {
         if (operationId == null || operationId <= 0) return;
 
@@ -222,16 +264,16 @@ public class DrivingActivity extends AppCompatActivity {
                 if (!res.isSuccessful() || res.body() == null) return;
                 ApiService.ArrivalNowResponse r = res.body();
 
-                // 1) 상단 노선유형 -> 색/칩/아이콘 동기화
-                String label = (r.routeTypeLabel != null && !r.routeTypeLabel.isBlank())
+                // 노선유형 → 색/칩/아이콘 동기화
+                String  label = (r.routeTypeLabel != null && !r.routeTypeLabel.isBlank())
                         ? r.routeTypeLabel : codeToLabel(r.routeTypeCode);
-                Integer code = (r.routeTypeCode != null) ? r.routeTypeCode : labelToCode(label);
+                Integer code  = (r.routeTypeCode != null) ? r.routeTypeCode : labelToCode(label);
                 if (label != null) tvRouteType.setText(label);
-                if (code != null) applyRouteTypeColor(code);
+                if (code  != null) applyRouteTypeColor(code);
 
-                // 2) 정류장 표시
+                // 정류장 텍스트
                 String cur  = (r.currentStopName == null || r.currentStopName.isEmpty()) ? "-" : r.currentStopName;
-                String next = (r.nextStopName == null || r.nextStopName.isEmpty()) ? "-" : r.nextStopName;
+                String next = (r.nextStopName    == null || r.nextStopName.isEmpty())    ? "-" : r.nextStopName;
 
                 if (r.etaSec != null) {
                     if (r.etaSec <= 0) next = next + "  ·  곧 도착";
@@ -243,14 +285,67 @@ public class DrivingActivity extends AppCompatActivity {
                 tvCurrentStop.setText(cur);
                 tvNextStop.setText(next);
             }
-            @Override public void onFailure(Call<ApiService.ArrivalNowResponse> call, Throwable t) { }
+            @Override public void onFailure(Call<ApiService.ArrivalNowResponse> call, Throwable t) { /* noop */ }
         });
     }
 
+    // ===== 승객 현황 =====
+    private void fetchPassengersNow() {
+        if (operationId == null || operationId <= 0) {
+            passengersAdapter.submit(null);
+            updatePassengerCounters(0, 0);
+            return;
+        }
+
+        // 서버: /api/driver/passengers  (Authorization은 OkHttp 인터셉터에서 넣는 패턴이라 null)
+        api.getDriverPassengers(null, "DRIVER_APP")
+                .enqueue(new Callback<ApiService.DriverPassengerListResponse>() {
+                    @Override public void onResponse(
+                            Call<ApiService.DriverPassengerListResponse> call,
+                            Response<ApiService.DriverPassengerListResponse> res) {
+                        if (!res.isSuccessful() || res.body() == null) {
+                            passengersAdapter.submit(null);
+                            updatePassengerCounters(0, 0);
+                            return;
+                        }
+                        ApiService.DriverPassengerListResponse body = res.body();
+                        List<ApiService.DriverPassengerDto> items =
+                                body.items != null ? body.items : new ArrayList<>();
+
+                        passengersAdapter.submit(items);
+
+                        // 정책 예시:
+                        // - CONFIRMED : 탑승 예정
+                        // - BOARDED   : 하차 예정 (운행 중 이미 탑승한 승객)
+                        // 필요 시 상태/정류장 기준으로 바꾸면 됨
+                        int boarding = 0;
+                        int dropoff  = 0;
+                        for (ApiService.DriverPassengerDto d : items) {
+                            if ("CONFIRMED".equalsIgnoreCase(nz(d.status))) boarding++;
+                            else if ("BOARDED".equalsIgnoreCase(nz(d.status))) dropoff++;
+                        }
+                        updatePassengerCounters(boarding, dropoff);
+                    }
+
+                    @Override public void onFailure(
+                            Call<ApiService.DriverPassengerListResponse> call, Throwable t) {
+                        passengersAdapter.submit(null);
+                        updatePassengerCounters(0, 0);
+                    }
+                });
+    }
+
+    private void updatePassengerCounters(int boarding, int dropoff) {
+        if (tvBoardingNum != null) tvBoardingNum.setText(boarding + "명");
+        if (tvDropoffNum  != null) tvDropoffNum.setText(dropoff  + "명");
+    }
+
+    // ===== 위치 업데이트(하트비트) =====
     private void startLocationUpdates() {
         if (operationId == null || operationId <= 0) return;
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
+            // 권한 요청은 상위 플로우에서 이미 처리됨(운행 시작 시)
             return;
         }
         LocationRequest req = new LocationRequest.Builder(2000L)
@@ -271,6 +366,7 @@ public class DrivingActivity extends AppCompatActivity {
         }
     }
 
+    // ===== 운행 종료 =====
     private void showDriveEndPopup() {
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -309,7 +405,7 @@ public class DrivingActivity extends AppCompatActivity {
                         SharedPreferences sp = getSharedPreferences(PREF, MODE_PRIVATE);
                         sp.edit()
                                 .remove(K_OPERATION_ID)
-                                .remove(K_STARTED_AT)        // ★ 타이머 기준시각 제거
+                                .remove(K_STARTED_AT) // 타이머 기준시각 제거
                                 .apply();
 
                         // 타이머 정지
@@ -331,7 +427,7 @@ public class DrivingActivity extends AppCompatActivity {
                 });
     }
 
-    // ==== 스타일 유틸 ====
+    // ===== 스타일/유틸 =====
     private void applyRouteTypeColor(Integer code){
         int color = routeTypeColor(code);
         tvRouteName.setTextColor(color);
@@ -403,12 +499,10 @@ public class DrivingActivity extends AppCompatActivity {
         gd.setColor(color);
         gd.setStroke(1, color);
         iv.setBackground(gd);
-        androidx.core.widget.ImageViewCompat.setImageTintList(
-                iv, ColorStateList.valueOf(Color.WHITE)
-        );
+        ImageViewCompat.setImageTintList(iv, ColorStateList.valueOf(Color.WHITE));
     }
 
-    // ==== 유틸: 경과시간 포맷 ====
+    // 경과시간 포맷
     private String formatHms(long ms){
         long totalSec = ms / 1000;
         long h = totalSec / 3600;
@@ -427,6 +521,88 @@ public class DrivingActivity extends AppCompatActivity {
     private void simulateStopSignalOff() {
         if (colorHeaderBarContainer != null) {
             colorHeaderBarContainer.setBackgroundColor(Color.TRANSPARENT);
+        }
+    }
+
+    private static String nz(String s) { return s == null ? "" : s; }
+
+    // =========================
+    // 승객 어댑터 (간단 버전, 별도 XML 없이 코드로 구성)
+    // =========================
+    private static class PassengersAdapter extends RecyclerView.Adapter<PassengersAdapter.VH> {
+        private final List<ApiService.DriverPassengerDto> data = new ArrayList<>();
+
+        static class VH extends RecyclerView.ViewHolder {
+            TextView tvLine1, tvLine2;
+            VH(View itemView, TextView l1, TextView l2) {
+                super(itemView); this.tvLine1 = l1; this.tvLine2 = l2;
+            }
+        }
+
+        @Override public VH onCreateViewHolder(ViewGroup parent, int viewType) {
+            // 카드 내부에 들어갈 심플한 2줄 아이템
+            LinearLayout root = new LinearLayout(parent.getContext());
+            root.setOrientation(LinearLayout.VERTICAL);
+            int pad = (int) (12 * parent.getResources().getDisplayMetrics().density);
+            root.setPadding(pad, pad, pad, pad);
+
+            TextView line1 = new TextView(parent.getContext());
+            line1.setTextSize(16f);
+            line1.setTextColor(Color.parseColor("#111827"));
+            line1.setEllipsize(TextUtils.TruncateAt.END);
+            line1.setMaxLines(1);
+
+            TextView line2 = new TextView(parent.getContext());
+            line2.setTextSize(12f);
+            line2.setTextColor(Color.parseColor("#6B7280"));
+            line2.setEllipsize(TextUtils.TruncateAt.END);
+            line2.setMaxLines(2);
+
+            root.addView(line1, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            root.addView(line2, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            // 구분선
+            View divider = new View(parent.getContext());
+            divider.setBackgroundColor(Color.parseColor("#E5E7EB"));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, (int)(1 * parent.getResources().getDisplayMetrics().density));
+            lp.topMargin = pad; lp.bottomMargin = 0;
+            root.addView(divider, lp);
+
+            return new VH(root, line1, line2);
+        }
+
+        @Override public void onBindViewHolder(VH h, int pos) {
+            ApiService.DriverPassengerDto d = data.get(pos);
+            String name = !TextUtils.isEmpty(d.username) ? d.username : (!TextUtils.isEmpty(d.userId) ? d.userId : "승객");
+            String status = d.status != null ? d.status : "-";
+            String bStop = d.boardingStopName != null ? d.boardingStopName : "-";
+            String aStop = d.alightingStopName != null ? d.alightingStopName : "-";
+
+            h.tvLine1.setText(name + " · " + toKoreanStatus(status));
+            h.tvLine2.setText("승차: " + bStop + "   ·   하차: " + aStop);
+        }
+
+        @Override public int getItemCount() { return data.size(); }
+
+        void submit(List<ApiService.DriverPassengerDto> items) {
+            data.clear();
+            if (items != null) data.addAll(items);
+            notifyDataSetChanged();
+        }
+
+        private String toKoreanStatus(String s) {
+            if (s == null) return "-";
+            String x = s.toUpperCase();
+            switch (x) {
+                case "CONFIRMED": return "예약확정";
+                case "BOARDED":   return "탑승중";
+                case "CANCELLED": return "취소";
+                case "NOSHOW":    return "미탑승";
+                default:          return s;
+            }
         }
     }
 }
