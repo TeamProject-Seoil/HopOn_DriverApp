@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/driver_bus_info/activity/DrivingActivity.java
 package com.example.driver_bus_info.activity;
 
 import android.Manifest;
@@ -10,7 +9,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
-import android.text.TextUtils;
+import android.util.Log;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -26,6 +25,9 @@ import androidx.core.widget.ImageViewCompat;
 import com.example.driver_bus_info.R;
 import com.example.driver_bus_info.service.ApiClient;
 import com.example.driver_bus_info.service.ApiService;
+// BuildConfig는 앱 패키지의 것을 사용
+
+
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -49,6 +51,8 @@ public class DrivingActivity extends AppCompatActivity {
     private static final String K_PLATE_NO     = "sel_plate_no";
     private static final String K_STARTED_AT   = "operation_started_at";
 
+    private static final String TAG = "DrivingActivity";
+
     private ApiService api;
 
     // 상단
@@ -59,10 +63,14 @@ public class DrivingActivity extends AppCompatActivity {
     // 정류장 안내
     private TextView tvCurrentStop, tvNextStop;
 
+    // 현재 정류장 표준화된 이름/ID
+    private String currentStopName = null;   // 원문
+    private String currentStopNorm = null;   // normalize 결과
+    private String currentStopId   = null;   // 서버가 주면 사용
+
     // 승객 현황(타일)
     private TextView tvBoardingNum, tvDropoffNum; // 이번 역 탑승/하차 예정
-    // (옵션) 헤더에 배치한 총 예약 배지
-    private TextView tvTotalReservedBadge; // 레이아웃에 없으면 null
+    private TextView tvTotalReservedBadge; // (옵션) 총 예약 배지
 
     // 총 운행시간
     private TextView tvTotalDriveTime;
@@ -86,7 +94,6 @@ public class DrivingActivity extends AppCompatActivity {
     private String routeId;
     private String routeName;
     private String plateNo;
-    private String currentStopName = null; // 이번 정류장 이름(문자열로 판정)
 
     // 위치 & 하트비트
     private FusedLocationProviderClient fused;
@@ -100,11 +107,50 @@ public class DrivingActivity extends AppCompatActivity {
     private static final long ARRIVAL_POLL_MS = 10_000L;
     private final Runnable arrivalPollTask = new Runnable() {
         @Override public void run() {
-            fetchArrivalNow();     // 이번/다음 정류장 + 노선유형
-            fetchPassengersNow();  // 카운터만 계산
+            fetchArrivalNowAndThenFetchPassengers();
             arrivalHandler.postDelayed(this, ARRIVAL_POLL_MS);
         }
     };
+
+    // ====== 체인: 도착정보 반영 후 승객 집계 ======
+    private void fetchArrivalNowAndThenFetchPassengers() {
+        if (operationId == null || operationId <= 0) return;
+
+        api.arrivalNow(null, "DRIVER_APP").enqueue(new Callback<ApiService.ArrivalNowResponse>() {
+            @Override public void onResponse(Call<ApiService.ArrivalNowResponse> call,
+                                             Response<ApiService.ArrivalNowResponse> res) {
+                if (res.isSuccessful() && res.body() != null) {
+                    ApiService.ArrivalNowResponse r = res.body();
+
+                    // 1) 노선유형 UI 반영
+                    String  label = !nz(r.routeTypeLabel).isEmpty() ? r.routeTypeLabel : codeToLabel(r.routeTypeCode);
+                    Integer code  = r.routeTypeCode != null ? r.routeTypeCode : labelToCode(label);
+                    if (label != null) tvRouteType.setText(label);
+                    if (code  != null) applyRouteTypeColor(code);
+
+                    // 2) 정류장 텍스트 + 현재 정류장 표준화
+                    String cur  = nz(r.currentStopName).isEmpty() ? "-" : r.currentStopName;
+                    String next = nz(r.nextStopName).isEmpty()    ? "-" : r.nextStopName;
+
+                    if (r.etaSec != null) {
+                        if (r.etaSec <= 0) next = next + "  ·  곧 도착";
+                        else next = next + "  ·  약 " + Math.max(1, (int)Math.round(r.etaSec/60.0)) + "분";
+                    }
+                    tvCurrentStop.setText(cur);
+                    tvNextStop.setText(next);
+
+                    currentStopName = "-".equals(cur) ? "" : cur;
+                    currentStopNorm = normalizeStop(currentStopName);
+                    currentStopId   = nz(r.currentStopId); // 서버가 주면 세팅
+                }
+                // 3) arrival 반영 직후 승객 집계
+                fetchPassengersNow();
+            }
+            @Override public void onFailure(Call<ApiService.ArrivalNowResponse> call, Throwable t) {
+                fetchPassengersNow(); // 실패해도 집계는 시도
+            }
+        });
+    }
 
     // 데모용
     private final Handler demoHandler = new Handler();
@@ -224,8 +270,7 @@ public class DrivingActivity extends AppCompatActivity {
         timerHandler.post(timerTick);
 
         // 즉시 1회 정보 갱신
-        fetchArrivalNow();
-        fetchPassengersNow();
+        fetchArrivalNowAndThenFetchPassengers();
     }
 
     @Override protected void onPause() {
@@ -243,42 +288,6 @@ public class DrivingActivity extends AppCompatActivity {
         timerHandler.removeCallbacksAndMessages(null);
     }
 
-    // ===== 이번/다음 정류장 + 노선유형(DB 캐시 기반) =====
-    private void fetchArrivalNow() {
-        if (operationId == null || operationId <= 0) return;
-
-        api.arrivalNow(null).enqueue(new Callback<ApiService.ArrivalNowResponse>() {
-            @Override public void onResponse(Call<ApiService.ArrivalNowResponse> call,
-                                             Response<ApiService.ArrivalNowResponse> res) {
-                if (!res.isSuccessful() || res.body() == null) return;
-                ApiService.ArrivalNowResponse r = res.body();
-
-                // 노선유형 → 색/칩/아이콘 동기화
-                String  label = (r.routeTypeLabel != null && !r.routeTypeLabel.isEmpty())
-                        ? r.routeTypeLabel : codeToLabel(r.routeTypeCode);
-                Integer code  = (r.routeTypeCode != null) ? r.routeTypeCode : labelToCode(label);
-                if (label != null) tvRouteType.setText(label);
-                if (code  != null) applyRouteTypeColor(code);
-
-                // 정류장 텍스트
-                String cur  = (r.currentStopName == null || r.currentStopName.isEmpty()) ? "-" : r.currentStopName;
-                String next = (r.nextStopName    == null || r.nextStopName.isEmpty())    ? "-" : r.nextStopName;
-
-                if (r.etaSec != null) {
-                    if (r.etaSec <= 0) next = next + "  ·  곧 도착";
-                    else {
-                        int min = Math.max(1, (int)Math.round(r.etaSec / 60.0));
-                        next = next + "  ·  약 " + min + "분";
-                    }
-                }
-                tvCurrentStop.setText(cur);
-                tvNextStop.setText(next);
-                currentStopName = "-".equals(cur) ? "" : cur; // 이름 저장(“-”는 빈값 처리)
-            }
-            @Override public void onFailure(Call<ApiService.ArrivalNowResponse> call, Throwable t) { /* noop */ }
-        });
-    }
-
     // ===== 승객 현황(리스트 없음, 카운트만) =====
     private void fetchPassengersNow() {
         if (operationId == null || operationId <= 0) {
@@ -286,7 +295,6 @@ public class DrivingActivity extends AppCompatActivity {
             return;
         }
 
-        // 서버: /api/driver/passengers  (Authorization은 OkHttp 인터셉터에서 처리)
         api.getDriverPassengers(null, "DRIVER_APP")
                 .enqueue(new Callback<ApiService.DriverPassengerListResponse>() {
                     @Override public void onResponse(
@@ -299,31 +307,44 @@ public class DrivingActivity extends AppCompatActivity {
                         List<ApiService.DriverPassengerDto> items =
                                 res.body().items != null ? res.body().items : new ArrayList<>();
 
-                        int boardingHere  = 0;   // 이번 역 탑승 예정
+                        int boardingHere  = 0;   // 이번 역 승차 예정
                         int alightHere    = 0;   // 이번 역 하차 예정
                         int totalReserved = 0;   // 총 예약(취소/노쇼 제외)
 
-                        final String cur = nz(currentStopName).trim();
+                        final String curId  = nz(currentStopId).trim();
+                        final String curNm  = nz(currentStopName).trim();
+                        final String curNor = nz(currentStopNorm);
 
                         for (ApiService.DriverPassengerDto d : items) {
                             String st = nz(d.status).toUpperCase();
 
-                            // 총 예약: CONFIRMED/BOARDED만 집계
-                            if ("CONFIRMED".equals(st) || "BOARDED".equals(st)) totalReserved++;
+                            boolean reservedLike = st.contains("CONFIRM") || st.contains("RESERV");
+                            boolean boardedLike  = st.contains("BOARD");
 
-                            // 이번 역 ‘탑승 예정’: CONFIRMED && boardingStopName == currentStopName
-                            if ("CONFIRMED".equals(st)) {
-                                if (!cur.isEmpty() && cur.equals(nz(d.boardingStopName).trim())) {
-                                    boardingHere++;
-                                }
+                            if (reservedLike || boardedLike) totalReserved++;
+
+                            boolean matchBoardHere = false;
+                            boolean matchAlightHere = false;
+
+                            if (!curId.isEmpty()) {
+                                if (curId.equals(nz(d.boardingStopId).trim()))  matchBoardHere  = true;
+                                if (curId.equals(nz(d.alightingStopId).trim())) matchAlightHere = true;
+                            } else {
+                                String bNor = normalizeStop(d.boardingStopName);
+                                String aNor = normalizeStop(d.alightingStopName);
+                                if (!curNor.isEmpty() && curNor.equals(bNor)) matchBoardHere = true;
+                                if (!curNor.isEmpty() && curNor.equals(aNor)) matchAlightHere = true;
                             }
 
-                            // 이번 역 ‘하차 예정’: BOARDED && alightingStopName == currentStopName
-                            if ("BOARDED".equals(st)) {
-                                if (!cur.isEmpty() && cur.equals(nz(d.alightingStopName).trim())) {
-                                    alightHere++;
-                                }
-                            }
+                            if (reservedLike && matchBoardHere)  boardingHere++;
+                            if (boardedLike  && matchAlightHere) alightHere++;
+                        }
+
+                        if (Log.isLoggable(TAG, Log.DEBUG)) {
+                            Log.d(TAG, "passengers: items=" + items.size()
+                                    + ", curNm=" + curNm + ", curId=" + curId
+                                    + " -> boardHere=" + boardingHere + ", alightHere=" + alightHere
+                                    + ", total=" + totalReserved);
                         }
 
                         updatePassengerCounters(boardingHere, alightHere, totalReserved);
@@ -349,7 +370,6 @@ public class DrivingActivity extends AppCompatActivity {
         if (operationId == null || operationId <= 0) return;
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
-            // 권한 요청은 상위 플로우에서 이미 처리됨(운행 시작 시)
             return;
         }
         LocationRequest req = new LocationRequest.Builder(2000L)
@@ -409,10 +429,9 @@ public class DrivingActivity extends AppCompatActivity {
                         SharedPreferences sp = getSharedPreferences(PREF, MODE_PRIVATE);
                         sp.edit()
                                 .remove(K_OPERATION_ID)
-                                .remove(K_STARTED_AT) // 타이머 기준시각 제거
+                                .remove(K_STARTED_AT)
                                 .apply();
 
-                        // 타이머 정지
                         timerHandler.removeCallbacksAndMessages(null);
 
                         Toast.makeText(DrivingActivity.this, "운행이 종료되었습니다.", Toast.LENGTH_SHORT).show();
@@ -529,4 +548,27 @@ public class DrivingActivity extends AppCompatActivity {
     }
 
     private static String nz(String s) { return s == null ? "" : s; }
+
+    /** 정류장 이름 정규화 */
+    private static String normalizeStop(String raw) {
+        if (raw == null) return "";
+        String s = raw.toLowerCase();
+
+        s = s.replaceAll("\\(.*?\\)", "");
+        s = s.replaceAll("\\[.*?\\]", "");
+        s = s.replaceAll("\\{.*?\\}", "");
+
+        s = s.replace("·", "");
+        s = s.replace("ㆍ", "");
+        s = s.replace(".", "");
+        s = s.replace("-", "");
+        s = s.replace("_", "");
+
+        s = s.replaceAll("\\s+", "");
+
+        s = s.replace("정류장", "");
+        s = s.replace("역", "");
+
+        return s.trim();
+    }
 }
