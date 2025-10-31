@@ -342,7 +342,7 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
     private void loadArrivalMeta() {
         final String expectVehicleId = selVehicleId;
 
-        api.arrivalNow(null).enqueue(new Callback<ApiService.ArrivalNowResponse>() {
+        api.arrivalNow(null,"DRIVER_APP").enqueue(new Callback<ApiService.ArrivalNowResponse>() {
             @Override public void onResponse(Call<ApiService.ArrivalNowResponse> call,
                                              Response<ApiService.ArrivalNowResponse> res) {
                 if (!res.isSuccessful() || res.body()==null) return;

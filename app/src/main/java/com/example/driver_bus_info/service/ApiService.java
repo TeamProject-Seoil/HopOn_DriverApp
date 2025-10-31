@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/driver_bus_info/service/ApiService.java
 package com.example.driver_bus_info.service;
 
 import com.example.driver_bus_info.dto.ArrivalDto;
@@ -179,7 +178,6 @@ public interface ApiService {
     // =========================================================
     // =============== 공통 Page 응답 (공지/문의) ================
     // =========================================================
-    /** 서버가 page 또는 number 중 무엇을 내려줘도 매핑되도록 처리 */
     class PageResponse<T> {
         public List<T> content;
         @SerializedName(value = "page", alternate = {"number"})
@@ -422,24 +420,23 @@ public interface ApiService {
     // =========== 드라이버 운행 “이번/다음 정류장” ===============
     // =========================================================
     class ArrivalNowResponse {
-        public String currentStopName;   // 이번 정류장
-        public String nextStopName;      // 다음 정류장
-        public Integer etaSec;           // 다음 정류장까지 남은 초(없으면 null)
-        // 백엔드 추가 필드
-        public Integer routeTypeCode;    // 서울시 busRouteType 코드 (null 가능)
-        public String  routeTypeLabel;   // 라벨(간선/지선/…)
+        public String currentStopId;   // 서버가 주면 사용
+        public String currentStopName;
+        public String nextStopId;      // 서버가 주면 사용
+        public String nextStopName;
+        public Integer etaSec;
+        public Integer routeTypeCode;
+        public String  routeTypeLabel;
     }
 
     @GET("/api/driver/operations/arrival-now")
-    Call<ArrivalNowResponse> arrivalNow(@Header("Authorization") String bearer);
+    Call<ArrivalNowResponse> arrivalNow(@Header("Authorization") String bearer,
+                                        @Header("X-Client-Type") String clientType);
 
     // =========================================================
     // ================ 운행 기록(페이징/엔디드) =================
     // =========================================================
 
-    /** 운행 목록(상태별) 페이징
-     *  예: /api/driver/operations?status=ENDED&page=0&size=20&sort=endedAt,desc
-     */
     class DriverOperationListItem {
         public Long id;
         public String routeId, routeName;
@@ -456,10 +453,9 @@ public interface ApiService {
             @Query("status") String status,         // "ENDED" | "RUNNING" | null(전체)
             @Query("page")   int page,
             @Query("size")   int size,
-            @Query("sort")   String sort            // "endedAt,desc" 등
+            @Query("sort")   String sort
     );
 
-    /** (구) 종료된 운행 전체 조회 */
     class DriverOperationResp {
         public Long id;
         public Long userNum;
@@ -480,7 +476,6 @@ public interface ApiService {
             @Header("X-Client-Type") String clientType
     );
 
-    /** 종료된 운행 단건 조회 */
     @GET("/api/driver/operations/ended/{operationId}")
     Call<DriverOperationResp> getEndedOperation(
             @Header("Authorization") String bearer,
@@ -489,25 +484,26 @@ public interface ApiService {
     );
 
     // ===== 승객 현황 =====
-    @GET("/api/driver/passengers")
+    /** ★ 경로 수정: /api/driver/passengers/now */
+    @GET("/api/driver/passengers/now")
     Call<ApiService.DriverPassengerListResponse> getDriverPassengers(
             @Header("Authorization") String bearer,
-            @Header("Client-Type") String clientType
+            @Header("X-Client-Type") String clientType
     );
 
     // ===== DTOs =====
-    public static class DriverPassengerListResponse {
+    class DriverPassengerListResponse {
         public Long   operationId;
         public String routeId;
         public String routeName;
         public Integer count;
         public List<DriverPassengerDto> items;
     }
-    public static class DriverPassengerDto {
+    class DriverPassengerDto {
         public Long   reservationId;
         public Long   userNum;
         public String username;
-        public String userid;             // ← 여기! DrivingActivity에서 이 이름을 씁니다.
+        public String userid;             // 서버에서 userid로 내려온다고 가정
         public String boardingStopId;
         public String boardingStopName;
         public String alightingStopId;
