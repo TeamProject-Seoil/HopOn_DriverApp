@@ -272,6 +272,8 @@ android:padding="16dp">
     android:paddingVertical="8dp"
     android:clipToOutline="true">
 
+
+
     <ImageView
         android:layout_width="22dp"
         android:layout_height="22dp"
@@ -287,14 +289,18 @@ android:padding="16dp">
         android:textColor="#111827"
         android:textStyle="bold"
         android:textSize="18sp"/>
-</LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvPassengers"
-        android:layout_width="match_parent"
+    <TextView
+        android:id="@+id/tvTotalReserved"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:nestedScrollingEnabled="false"/>
+        android:layout_marginStart="8dp"
+        android:text="총 예약 0명"
+        android:textColor="#6B7280"
+        android:textSize="12sp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"/>
+</LinearLayout>
 
 <LinearLayout
     android:layout_width="match_parent"
