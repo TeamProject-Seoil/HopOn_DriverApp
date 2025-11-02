@@ -240,8 +240,7 @@ android:gravity="center_horizontal">
 
     <!-- 승객 현황 카드 -->
 <androidx.cardview.widget.CardView
-android:id="@+id/cardPassengerInfo"
-android:layout_width="0dp"
+    android:layout_width="0dp"
 android:layout_height="wrap_content"
     android:layout_marginTop="14dp"
 android:layout_marginBottom="10dp"
@@ -281,7 +280,6 @@ android:padding="16dp">
         android:contentDescription="@string/untitled"/>
 
     <TextView
-        android:id="@+id/tvPassengerTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
@@ -322,7 +320,6 @@ android:padding="16dp">
         android:clipToOutline="true">
 
         <TextView
-            android:id="@+id/tvBoardingCount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="이번역 승차"
@@ -353,7 +350,6 @@ android:padding="16dp">
         android:clipToOutline="true">
 
         <TextView
-            android:id="@+id/tvDropoffCount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="이번역 하차"
@@ -377,8 +373,7 @@ android:padding="16dp">
 
     <!-- 하단 버튼: 더 크게/둥글게 -->
 <LinearLayout
-android:id="@+id/controlButtons"
-android:layout_width="0dp"
+    android:layout_width="0dp"
 android:layout_height="wrap_content"
 android:gravity="center"
 android:orientation="horizontal"

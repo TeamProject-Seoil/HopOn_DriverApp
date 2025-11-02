@@ -1,5 +1,2 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <item name="tag_seq" type="id"/>
-    <item type="id" name="fab_arrivals_refresh"/>
-</resources>
+<resources></resources>

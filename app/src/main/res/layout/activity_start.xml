@@ -33,7 +33,6 @@
         app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
-        android:id="@+id/textView_hop"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Hop on"
@@ -47,7 +46,6 @@
         app:layout_constraintVertical_bias="0.813" />
 
     <com.airbnb.lottie.LottieAnimationView
-        android:id="@+id/start_wife"
         android:layout_width="70dp"
         android:layout_height="70dp"
         app:layout_constraintBottom_toTopOf="@+id/start_vector"

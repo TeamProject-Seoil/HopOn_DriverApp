@@ -57,7 +57,6 @@
 
                 <!-- 머티리얼 입력 필드(모서리 라운드) -->
                 <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/til_plate"
                     style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

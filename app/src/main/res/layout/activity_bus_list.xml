@@ -30,7 +30,6 @@
             app:layout_constraintTop_toTopOf="parent"/>
 
         <TextView
-            android:id="@+id/headerTitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="버스 운행 관리"
@@ -86,7 +85,6 @@
             app:layout_constraintStart_toStartOf="parent"/>
 
         <androidx.cardview.widget.CardView
-            android:id="@+id/selectedCard"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="16dp"
