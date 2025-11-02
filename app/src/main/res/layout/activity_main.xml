@@ -25,7 +25,6 @@
 
     <!-- 상단 오른쪽: 공지/설정 (간격 포함) -->
     <LinearLayout
-        android:id="@+id/topRightContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -37,7 +36,6 @@
 
         <!-- 공지 + 배지 -->
         <FrameLayout
-            android:id="@+id/btnNoticeWrap"
             android:layout_width="40dp"
             android:layout_height="40dp">
 
@@ -197,7 +195,6 @@
             android:padding="20dp">
 
             <com.airbnb.lottie.LottieAnimationView
-                android:id="@+id/busicon"
                 android:layout_width="100dp"
                 android:layout_height="100dp"
                 app:lottie_autoPlay="true"
@@ -218,7 +215,6 @@
 
     <!-- 운행 기록 카드 -->
     <androidx.cardview.widget.CardView
-        android:id="@+id/cardLog"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
@@ -244,7 +240,6 @@
                 android:orientation="horizontal">
 
                 <TextView
-                    android:id="@+id/tvLogTitle"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
@@ -264,7 +259,6 @@
 
             <!-- ▼ 컬럼 헤더 (1열 날짜 / 2열 노선·차량 / 3열 유형 / 4열 출발 / 5열 도착) -->
             <LinearLayout
-                android:id="@+id/logHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"

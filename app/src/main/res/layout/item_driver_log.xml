@@ -41,7 +41,6 @@
 
             <!-- 노선/차량 묶음: 가이드라인(2/3)까지 확장 -->
             <LinearLayout
-                android:id="@+id/llRoutePlate"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"

@@ -44,7 +44,6 @@
 
         <!-- ===== 프로필 이미지 섹션 ===== -->
         <LinearLayout
-            android:id="@+id/profile_section"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -127,7 +126,6 @@
 
             <!-- 가이드 한 줄 -->
             <TextView
-                android:id="@+id/password_rules"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="비밀번호는 10~16자, 영문/숫자 조합, 공백/특수문자 불가"
@@ -138,7 +136,6 @@
 
             <!-- 규칙 체크 3줄 -->
             <LinearLayout
-                android:id="@+id/pw_rule_box"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"

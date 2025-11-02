@@ -1,7 +1,6 @@
 <resources>
     <string name="app_name">driver_bus_info</string>
     <string name="back">뒤로가기</string>
-    <string name="back_to_spinner">뒤로</string>
     <string name="ok">확인</string>
     <string name="delete">삭제</string>
     <string name="untitled">Bus icon</string>

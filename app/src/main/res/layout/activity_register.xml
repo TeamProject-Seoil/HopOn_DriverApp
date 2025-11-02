@@ -97,7 +97,6 @@
 
             <!-- 🔻 비밀번호 제약조건: 비밀번호 바로 아래 -->
             <TextView
-                android:id="@+id/textPasswordHint"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="* 3자리 연속 문자/숫자, 키보드 연속열 금지 (예: abc, 123, qwe)"
@@ -107,7 +106,6 @@
 
             <!-- 비밀번호 규칙 달성도 표시 -->
             <LinearLayout
-                android:id="@+id/pw_rules_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"

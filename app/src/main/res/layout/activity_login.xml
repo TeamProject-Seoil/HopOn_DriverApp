@@ -148,7 +148,6 @@
 
     <!-- 로그인 카드 아래 중앙: 안내 문구 + 문의 버튼 -->
     <LinearLayout
-        android:id="@+id/centerInquiryArea"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -159,7 +158,6 @@
         app:layout_constraintEnd_toEndOf="parent">
 
         <TextView
-            android:id="@+id/tvTestCenterNote"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="도움이 필요하신가요? 아래에서 문의를 남겨주세요."

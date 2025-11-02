@@ -34,7 +34,6 @@
                 app:tint="#FFFFFF"/>
 
             <LinearLayout
-                android:id="@+id/settings_title_area"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_centerInParent="true"
@@ -156,7 +155,6 @@
 
                 <!-- 회사(선택 표시: 초기엔 GONE, 코드에서 내용 있을 때 VISIBLE) -->
                 <TextView
-                    android:id="@+id/labelCompany"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="회사"
