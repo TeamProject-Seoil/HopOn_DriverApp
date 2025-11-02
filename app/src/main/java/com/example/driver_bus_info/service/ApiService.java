@@ -1,11 +1,5 @@
 package com.example.driver_bus_info.service;
 
-import com.example.driver_bus_info.dto.ArrivalDto;
-import com.example.driver_bus_info.dto.BusLocationDto;
-import com.example.driver_bus_info.dto.BusRouteDto;
-import com.example.driver_bus_info.dto.ReservationCreateRequest;
-import com.example.driver_bus_info.dto.ReservationResponse;
-import com.example.driver_bus_info.dto.StationDto;
 import com.google.gson.annotations.SerializedName;
 
 import java.util.List;
@@ -22,26 +16,6 @@ import retrofit2.http.*;
  * - 버스/인증/회원/예약/면허 + 공지/문의 + 드라이버 운행 + 등록 이력 + 운행 기록(페이징)
  */
 public interface ApiService {
-
-    // =========================================================
-    // ================= 버스 / 정류장 ==========================
-    // =========================================================
-    @GET("/api/nearstations")
-    Call<List<StationDto>> getNearStations(@Query("x") double x,
-                                           @Query("y") double y,
-                                           @Query("radius") int radius);
-
-    /** 현재 정류장 도착 정보 (서울시 getStationByUid 기반) */
-    @GET("/api/stationStop")
-    Call<List<ArrivalDto>> getStationArrivals(@Query("arsId") String arsId);
-
-    /** 노선의 실시간 차량 위치 (서울시 getBusPosByRtid 기반) */
-    @GET("/api/busLocation")
-    Call<List<BusLocationDto>> getBusLocation(@Query("busRouteId") String busRouteId);
-
-    /** 노선의 정류장 리스트 (서울시 getStaionByRoute 기반) */
-    @GET("/api/busStopList")
-    Call<List<BusRouteDto>> getBusRoute(@Query("busRouteId") String busRouteId);
 
     // =========================================================
     // ======================= 인증 DTO ========================
@@ -108,9 +82,6 @@ public interface ApiService {
     Call<ResponseBody> meImage(@Header("Authorization") String bearer,
                                @Header("X-Client-Type") String clientType);
 
-    @POST("/auth/logout")
-    Call<Void> logout(@Body LogoutRequest body);
-
     class UserResponse {
         public Long userNum; public String userid, username, email, tel, role;
         public boolean hasProfileImage;
@@ -118,10 +89,6 @@ public interface ApiService {
         public boolean hasDriverLicenseFile;
         @SerializedName(value = "lastLoginAtIso",   alternate = {"lastLoginAt"})   public String lastLoginAtIso;
         @SerializedName(value = "lastRefreshAtIso", alternate = {"lastRefreshAt"}) public String lastRefreshAtIso;
-    }
-    class LogoutRequest {
-        public String clientType, deviceId, refreshToken;
-        public LogoutRequest(String c,String d,String r){ clientType=c; deviceId=d; refreshToken=r; }
     }
 
     @Multipart
@@ -147,33 +114,6 @@ public interface ApiService {
                                       @Header("X-Client-Type") String clientType,
                                       @Body DeleteAccountRequest body);
 
-    // =========================================================
-    // ========================= 예약 ===========================
-    // =========================================================
-    @POST("/api/reservations")
-    Call<ReservationResponse> createReservation(@Header("Authorization") String bearer,
-                                                @Body ReservationCreateRequest body);
-
-    // =========================================================
-    // =================== 운전면허(드라이버) ====================
-    // =========================================================
-    @GET("/users/me/driver-license")
-    Call<Map<String, Object>> getMyDriverLicense(@Header("Authorization") String bearer);
-
-    @GET("/users/me/driver-license/image")
-    Call<ResponseBody> getMyDriverLicenseImage(@Header("Authorization") String bearer);
-
-    @Multipart
-    @POST("/users/me/driver-license")
-    Call<Map<String, Object>> upsertMyDriverLicense(@Header("Authorization") String bearer,
-                                                    @Part("licenseNumber") RequestBody licenseNumber,
-                                                    @Part("acquiredDate") RequestBody acquiredDate,
-                                                    @Part("birthDate")    RequestBody birthDate,
-                                                    @Part("name")         RequestBody name,
-                                                    @Part MultipartBody.Part photo);
-
-    @DELETE("/users/me/driver-license")
-    Call<Map<String, Object>> deleteMyDriverLicense(@Header("Authorization") String bearer);
 
     // =========================================================
     // =============== 공통 Page 응답 (공지/문의) ================
@@ -251,31 +191,10 @@ public interface ApiService {
                                                    @Query("q") String q,
                                                    @Query("status") String status);
 
-    @GET("/api/inquiries/{id}")
-    Call<InquiryResp> getMyInquiryDetail(@Header("Authorization") String bearer,
-                                         @Header("X-User-Id") String userId,
-                                         @Header("X-User-Email") String email,
-                                         @Header("X-User-Role") String role,
-                                         @Path("id") Long id);
-
     @GET("/api/inquiries/{id}/public")
     Call<InquiryResp> getInquiryPublicDetail(@Path("id") Long id,
                                              @Query("password") String password);
 
-    @GET("/api/inquiries/{inquiryId}/attachments/{attId}")
-    Call<ResponseBody> downloadInquiryAttachment(@Header("Authorization") String bearer,
-                                                 @Header("X-User-Id") String userId,
-                                                 @Header("X-User-Email") String email,
-                                                 @Header("X-User-Role") String role,
-                                                 @Path("inquiryId") Long inquiryId,
-                                                 @Path("attId") Long attId,
-                                                 @Query("inline") boolean inline);
-
-    @GET("/api/inquiries/{inquiryId}/attachments/{attId}/public")
-    Call<ResponseBody> downloadInquiryAttachmentPublic(@Path("inquiryId") Long inquiryId,
-                                                       @Path("attId") Long attId,
-                                                       @Query("password") String password,
-                                                       @Query("inline") boolean inline);
 
     @Multipart
     @POST("/api/inquiries")
@@ -376,16 +295,6 @@ public interface ApiService {
         public boolean stale;
     }
 
-    /** 단일 운행의 현재 위치(사용자 앱 폴링용) */
-    @GET("/api/driver/operations/{operationId}/location")
-    Call<DriverLocationDto> getOperationLocation(@Header("Authorization") String bearer,
-                                                 @Path("operationId") Long operationId);
-
-    /** 노선의 활성 운행들 위치 목록(지도에 여러 마커) */
-    @GET("/api/routes/{routeId}/locations")
-    Call<List<DriverLocationDto>> getRouteLocations(@Header("Authorization") String bearer,
-                                                    @Path("routeId") String routeId);
-
     // =========================================================
     // =============== 드라이버 등록 이력(최근 선택) =============
     // =========================================================
@@ -469,19 +378,6 @@ public interface ApiService {
         public Integer routeTypeCode; // 선택
         public String  routeTypeLabel;// 선택
     }
-
-    @GET("/api/driver/operations/ended")
-    Call<List<DriverOperationResp>> getEndedOperations(
-            @Header("Authorization") String bearer,
-            @Header("X-Client-Type") String clientType
-    );
-
-    @GET("/api/driver/operations/ended/{operationId}")
-    Call<DriverOperationResp> getEndedOperation(
-            @Header("Authorization") String bearer,
-            @Header("X-Client-Type") String clientType,
-            @Path("operationId") Long operationId
-    );
 
     // ===== 승객 현황 =====
     /** ★ 경로 수정: /api/driver/passengers/now */
