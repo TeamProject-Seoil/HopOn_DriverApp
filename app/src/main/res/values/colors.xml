@@ -5,11 +5,6 @@
     <color name="blue">#4B93FF</color>
     // colors.xml 에 색상 정의 (추천)
     <color name="mainblue">#4B93FF</color>
-
-    <!-- 여유 -->
-    <!-- 보통 -->
-    <!-- 혼잡,매우혼잡 -->
-
     <color name="colorLogout">#D32F2F</color>
     <color name="colorOnLogout">#FFFFFF</color>
     <color name="colorTextSecondary">#6B6B6B</color>
