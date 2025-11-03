@@ -98,16 +98,20 @@ public interface ApiService {
                                 @Part("data") RequestBody dataJson,
                                 @Part MultipartBody.Part file);
 
-    class ChangePasswordRequest { public String currentPassword,newPassword;
-        public ChangePasswordRequest(String c,String n){ currentPassword=c; newPassword=n; } }
+    class ChangePasswordRequest {
+        public String currentPassword,newPassword;
+        public ChangePasswordRequest(String c,String n){ currentPassword=c; newPassword=n; }
+    }
 
     @POST("/users/me/password")
     Call<Map<String,Object>> changePassword(@Header("Authorization") String bearer,
                                             @Header("X-Client-Type") String clientType,
                                             @Body ChangePasswordRequest body);
 
-    class DeleteAccountRequest { public String currentPassword;
-        public DeleteAccountRequest(String c){ currentPassword=c; } }
+    class DeleteAccountRequest {
+        public String currentPassword;
+        public DeleteAccountRequest(String c){ currentPassword=c; }
+    }
 
     @HTTP(method="DELETE",path="/users/me",hasBody=true)
     Call<Map<String,Object>> deleteMe(@Header("Authorization") String bearer,
@@ -262,13 +266,26 @@ public interface ApiService {
                                        @Body HeartbeatRequest body);
 
     /** 운행 종료 */
-    class EndOperationRequest { public String memo;
-        public EndOperationRequest(String memo){ this.memo=memo; } }
+    class EndOperationRequest {
+        public String memo;
+        public EndOperationRequest(String memo){ this.memo=memo; }
+    }
 
     @POST("/api/driver/operations/end")
     Call<Map<String,Object>> endOperation(@Header("Authorization") String bearer,
                                           @Header("X-Client-Type") String clientType,
                                           @Body EndOperationRequest body);
+
+    /** 운행 지연 플래그 설정(예: 지연 버튼) */
+    class DelayOperationRequest {
+        public boolean delayed;
+        public DelayOperationRequest(boolean delayed){ this.delayed = delayed; }
+    }
+
+    @POST("/api/driver/operations/delay")
+    Call<Map<String,Object>> setOperationDelayed(@Header("Authorization") String bearer,
+                                                 @Header("X-Client-Type") String clientType,
+                                                 @Body DelayOperationRequest body);
 
     /** 현재 운행 조회(없으면 null 반환) */
     class ActiveOperationResp {
@@ -281,18 +298,28 @@ public interface ApiService {
         public String startedAt, endedAt;
         public Double lastLat, lastLon;
         public String updatedAt;
+        public Boolean delayed;         // ✅ 지연 여부 (추가)
     }
 
     @GET("/api/driver/operations/active")
     Call<ActiveOperationResp> getActiveOperation(@Header("Authorization") String bearer,
                                                  @Header("X-Client-Type") String clientType);
 
-    // 실시간 이동용: 위치 폴링 엔드포인트
+    // 실시간 이동용: 위치 DTO (서버 DriverLocationDto 에 맞춤)
     class DriverLocationDto {
         public Long operationId;
-        public Double lat, lon;
+        public Double lat;
+
+        @SerializedName("lng")   // 서버 JSON 키("lng") → 클라이언트 필드 lon
+        public Double lon;
+
         public String updatedAtIso;
         public boolean stale;
+
+        public String plainNo;
+        public String routeType;
+        public String routeTypeLabel;
+        public Integer routeTypeCode;
     }
 
     // =========================================================
@@ -353,6 +380,7 @@ public interface ApiService {
         public String startedAt, endedAt;    // ISO 문자열
         public Integer routeTypeCode;        // 선택
         public String  routeTypeLabel;       // 선택
+        public Boolean delayed;              // ✅ 운행 지연 여부(목록에도 필요하면 사용)
     }
 
     @GET("/api/driver/operations")
@@ -377,10 +405,11 @@ public interface ApiService {
         public String updatedAt;
         public Integer routeTypeCode; // 선택
         public String  routeTypeLabel;// 선택
+        public Boolean delayed;       // ✅ 단건 조회 시 지연 여부
     }
 
     // ===== 승객 현황 =====
-    /** ★ 경로 수정: /api/driver/passengers/now */
+    /** ★ 경로: /api/driver/passengers/now (서버에서 compat 제공) */
     @GET("/api/driver/passengers/now")
     Call<ApiService.DriverPassengerListResponse> getDriverPassengers(
             @Header("Authorization") String bearer,
@@ -389,12 +418,13 @@ public interface ApiService {
 
     // ===== DTOs =====
     class DriverPassengerListResponse {
-        public Long   operationId;
+        public Long operationId;
         public String routeId;
         public String routeName;
         public Integer count;
         public List<DriverPassengerDto> items;
     }
+
     class DriverPassengerDto {
         public Long   reservationId;
         public Long   userNum;
@@ -404,7 +434,10 @@ public interface ApiService {
         public String boardingStopName;
         public String alightingStopId;
         public String alightingStopName;
+        /** 예약 상태: CONFIRMED / CANCELLED / COMPLETED */
         public String status;
+        /** 탑승 단계: NOSHOW / BOARDED / ALIGHTED */
+        public String boardingStage;      // ✅ 추가
         public String createdAtIso;
         public String updatedAtIso;
     }
