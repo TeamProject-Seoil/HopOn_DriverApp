@@ -266,7 +266,7 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingHorizontal="12dp"
-                android:paddingVertical="8dp"
+                android:paddingVertical="12dp"
                 android:clipToOutline="true">
 
                 <ImageView
@@ -291,7 +291,7 @@
                     android:layout_marginStart="8dp"
                     android:text="총 예약 0명"
                     android:textColor="#6B7280"
-                    android:textSize="12sp"
+                    android:textSize="16sp"
                     android:paddingStart="8dp"
                     android:paddingEnd="0dp"/>
 
@@ -301,7 +301,7 @@
                     android:layout_height="wrap_content"
                     android:text=" · 탑승 0명"
                     android:textColor="#6B7280"
-                    android:textSize="12sp"
+                    android:textSize="16sp"
                     android:paddingStart="4dp"
                     android:paddingEnd="8dp"/>
             </LinearLayout>
@@ -317,7 +317,7 @@
 
                 <LinearLayout
                     android:layout_width="0dp"
-                    android:layout_height="140dp"
+                    android:layout_height="110dp"
                     android:layout_weight="1"
                     android:layout_marginEnd="6dp"
                     android:background="@drawable/rounded_box_blue_light"
@@ -347,7 +347,7 @@
 
                 <LinearLayout
                     android:layout_width="0dp"
-                    android:layout_height="140dp"
+                    android:layout_height="110dp"
                     android:layout_weight="1"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/rounded_box_red_light"
