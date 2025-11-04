@@ -64,6 +64,8 @@ public class DrivingActivity extends AppCompatActivity {
     private LinearLayout colorHeaderBarContainer; // 승객 카드 헤더 틴트
 
     // 정류장 안내
+    // current = "이번 정류장(아직 도착 전, 다음에 들어갈 역)"
+    // next    = "다음 정류장(그 다음 역)"
     private TextView tvCurrentStop, tvNextStop;
 
     // 현재 / 다음 정류장 표준화된 이름/ID
@@ -76,14 +78,17 @@ public class DrivingActivity extends AppCompatActivity {
     private String nextStopId   = null;
 
     // 승객 현황(타일)
-    private TextView tvBoardingNum, tvDropoffNum;           // 이번 역 탑승/하차
-    private TextView tvBoardingNextNum, tvDropoffNextNum;   // 다음 역 탑승/하차
+    private TextView tvBoardingNum, tvDropoffNum;           // 이번 역 승차/하차
+    private TextView tvBoardingNextNum, tvDropoffNextNum;   // 다음 역 승차/하차
     private TextView tvTotalReservedBadge;                  // 총 예약
     private TextView tvTotalOnboardBadge;                   // 현재 탑승 인원
 
     // 이번 역 승하차 이전 카운트(알림용)
     private int lastBoardingHereCount = 0;
     private int lastAlightHereCount   = 0;
+
+    // 마지막으로 알림 체크했던 "이번 정류장" 키 (정류장 바뀌면 카운트 리셋용)
+    private String lastHereStopKey = null;
 
     private static final String CHANNEL_ID_BOARDING_ALERT = "boarding_alert_channel";
 
@@ -169,10 +174,10 @@ public class DrivingActivity extends AppCompatActivity {
         tvTotalDriveTime = findViewById(R.id.tvTotalDriveTime);
 
         // 승객 카드 내 카운터
-        tvBoardingNum      = findViewById(R.id.tvBoardingNum);
-        tvDropoffNum       = findViewById(R.id.tvDropoffNum);
-        tvBoardingNextNum  = findViewById(R.id.tvBoardingNextNum);
-        tvDropoffNextNum   = findViewById(R.id.tvDropoffNextNum);
+        tvBoardingNum        = findViewById(R.id.tvBoardingNum);
+        tvDropoffNum         = findViewById(R.id.tvDropoffNum);
+        tvBoardingNextNum    = findViewById(R.id.tvBoardingNextNum);
+        tvDropoffNextNum     = findViewById(R.id.tvDropoffNextNum);
         tvTotalReservedBadge = findViewById(R.id.tvTotalReserved);
         tvTotalOnboardBadge  = findViewById(R.id.tvTotalOnboard);
 
@@ -219,8 +224,10 @@ public class DrivingActivity extends AppCompatActivity {
                 api.heartbeat(null, "DRIVER_APP",
                                 new ApiService.HeartbeatRequest(lat, lon))
                         .enqueue(new Callback<Map<String, Object>>() {
-                            @Override public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> res) { /* noop */ }
-                            @Override public void onFailure (Call<Map<String, Object>> call, Throwable t) { /* noop */ }
+                            @Override public void onResponse(Call<Map<String, Object>> call,
+                                                             Response<Map<String, Object>> res) { /* noop */ }
+                            @Override public void onFailure (Call<Map<String, Object>> call,
+                                                             Throwable t) { /* noop */ }
                         });
             }
         };
@@ -280,27 +287,26 @@ public class DrivingActivity extends AppCompatActivity {
                     ApiService.ArrivalNowResponse r = res.body();
 
                     // 1) 노선유형 UI 반영
-                    String  label = !nz(r.routeTypeLabel).isEmpty() ? r.routeTypeLabel : codeToLabel(r.routeTypeCode);
-                    Integer code  = r.routeTypeCode != null ? r.routeTypeCode : labelToCode(label);
+                    String  label = !nz(r.routeTypeLabel).isEmpty()
+                            ? r.routeTypeLabel
+                            : codeToLabel(r.routeTypeCode);
+                    Integer code  = r.routeTypeCode != null
+                            ? r.routeTypeCode
+                            : labelToCode(label);
+
                     if (label != null) tvRouteType.setText(label);
                     if (code  != null) applyRouteTypeColor(code);
 
                     // 2) 정류장 텍스트 + 현재/다음 정류장 표준화용 원본
+                    //    currentStop = "이번 정류장(도착할 역)"
+                    //    nextStop    = "다음 정류장"
                     String curRaw  = nz(r.currentStopName).trim();
                     String nextRaw = nz(r.nextStopName).trim();
 
                     String curText  = curRaw.isEmpty()  ? "-" : curRaw;
                     String nextText = nextRaw.isEmpty() ? "-" : nextRaw;
 
-                    if (r.etaSec != null) {
-                        if (r.etaSec <= 0) {
-                            nextText = nextText + "  ·  곧 도착";
-                        } else {
-                            int min = Math.max(1, (int)Math.round(r.etaSec / 60.0));
-                            nextText = nextText + "  ·  약 " + min + "분";
-                        }
-                    }
-
+                    // ETA는 신뢰도 이슈로 현재 UI에 표시하지 않음.
                     tvCurrentStop.setText(curText);
                     tvNextStop.setText(nextText);
 
@@ -316,7 +322,8 @@ public class DrivingActivity extends AppCompatActivity {
                 fetchPassengersNow();
             }
             @Override public void onFailure(Call<ApiService.ArrivalNowResponse> call, Throwable t) {
-                fetchPassengersNow(); // 실패해도 집계는 시도
+                // 도착정보 실패해도 일단 승객 집계는 시도 (이전 current/next 기준)
+                fetchPassengersNow();
             }
         });
     }
@@ -344,7 +351,7 @@ public class DrivingActivity extends AppCompatActivity {
                         int alightHere     = 0;   // 이번 역 하차 예정
                         int boardingNext   = 0;   // 다음 역 승차 예정
                         int alightNext     = 0;   // 다음 역 하차 예정
-                        int totalReserved  = 0;   // 총 예약(취소/노쇼 제외) - ACTIVE 기준
+                        int totalReserved  = 0;   // 총 예약(취소/노쇼 제외)
                         int onboardNow     = 0;   // 현재 탑승 중(boardingStage == BOARDED)
 
                         final String curId   = nz(currentStopId).trim();
@@ -353,19 +360,19 @@ public class DrivingActivity extends AppCompatActivity {
                         final String nextNor = nz(nextStopNorm);
 
                         for (ApiService.DriverPassengerDto d : items) {
-                            String st = nz(d.status).toUpperCase();
+                            String st    = nz(d.status).toUpperCase();
                             String stage = nz(d.boardingStage).toUpperCase();
 
                             boolean reservedLike = st.contains("CONFIRM") || st.contains("RESERV");
                             boolean boardedLike  = st.contains("BOARD") || "BOARDED".equals(stage);
 
                             if (reservedLike || boardedLike) totalReserved++;
-                            if ("BOARDED".equals(stage)) onboardNow++;
+                            if ("BOARDED".equals(stage))     onboardNow++;
 
-                            String bId = nz(d.boardingStopId).trim();
-                            String aId = nz(d.alightingStopId).trim();
-                            String bNm = nz(d.boardingStopName).trim();
-                            String aNm = nz(d.alightingStopName).trim();
+                            String bId  = nz(d.boardingStopId).trim();
+                            String aId  = nz(d.alightingStopId).trim();
+                            String bNm  = nz(d.boardingStopName).trim();
+                            String aNm  = nz(d.alightingStopName).trim();
                             String bNor = normalizeStop(bNm);
                             String aNor = normalizeStop(aNm);
 
@@ -374,7 +381,7 @@ public class DrivingActivity extends AppCompatActivity {
                             boolean matchBoardNext  = false;
                             boolean matchAlightNext = false;
 
-                            // 이번 역 매칭
+                            // 이번 역 매칭 (current = 이번 정류장)
                             if (!curId.isEmpty()) {
                                 if (curId.equals(bId)) matchBoardHere  = true;
                                 if (curId.equals(aId)) matchAlightHere = true;
@@ -383,7 +390,7 @@ public class DrivingActivity extends AppCompatActivity {
                                 if (curNor.equals(aNor)) matchAlightHere = true;
                             }
 
-                            // 다음 역 매칭
+                            // 다음 역 매칭 (next = 다음 정류장)
                             if (!nextId.isEmpty()) {
                                 if (nextId.equals(bId)) matchBoardNext  = true;
                                 if (nextId.equals(aId)) matchAlightNext = true;
@@ -392,11 +399,16 @@ public class DrivingActivity extends AppCompatActivity {
                                 if (nextNor.equals(aNor)) matchAlightNext = true;
                             }
 
+                            // 승차 예정(예약 상태에서, 이번/다음 정류장에서 탈 사람)
                             if (reservedLike && matchBoardHere)  boardingHere++;
-                            if (boardedLike  && matchAlightHere) alightHere++;
-
                             if (reservedLike && matchBoardNext)  boardingNext++;
-                            if (boardedLike  && matchAlightNext) alightNext++;
+
+                            // 하차 예정:
+                            // "예약중이며 탑승중" 인 사람만 알림 대상
+                            boolean alightCandidate = reservedLike && boardedLike;
+
+                            if (alightCandidate && matchAlightHere)  alightHere++;
+                            if (alightCandidate && matchAlightNext) alightNext++;
                         }
 
                         if (Log.isLoggable(TAG, Log.DEBUG)) {
@@ -411,9 +423,11 @@ public class DrivingActivity extends AppCompatActivity {
                                     + ", onboard=" + onboardNow);
                         }
 
-                        updatePassengerCounters(boardingHere, alightHere,
+                        updatePassengerCounters(
+                                boardingHere, alightHere,
                                 boardingNext, alightNext,
-                                totalReserved, onboardNow);
+                                totalReserved, onboardNow
+                        );
                     }
 
                     @Override public void onFailure(
@@ -430,6 +444,16 @@ public class DrivingActivity extends AppCompatActivity {
                                          int totalReserved,
                                          int onboardNow) {
 
+        // === 정류장 바뀌면 이번역 기준 카운트 리셋 ===
+        String curId  = nz(currentStopId).trim();
+        String curNor = nz(currentStopNorm);
+        String stopKey = curId.isEmpty() ? curNor : curId;
+        if (!nz(stopKey).equals(nz(lastHereStopKey))) {
+            lastBoardingHereCount = 0;
+            lastAlightHereCount   = 0;
+            lastHereStopKey       = stopKey;
+        }
+
         if (tvBoardingNum != null)      tvBoardingNum.setText(boardingHere + "명");
         if (tvDropoffNum  != null)      tvDropoffNum.setText(alightHere   + "명");
         if (tvBoardingNextNum != null)  tvBoardingNextNum.setText(boardingNext + "명");
@@ -442,7 +466,7 @@ public class DrivingActivity extends AppCompatActivity {
             tvTotalOnboardBadge.setText(" · 탑승 " + onboardNow + "명");
         }
 
-        // 이번역 승/하차 인원 0 → 1명 이상으로 변할 때 한 번만 알림 + 진동
+        // 이번역 승/하차 인원 0 → 1명 이상으로 변할 때 한 번만 알림 + 진동 (정류장별 1회)
         boolean hadHereBefore = (lastBoardingHereCount > 0 || lastAlightHereCount > 0);
         boolean hasHereNow    = (boardingHere > 0 || alightHere > 0);
         if (!hadHereBefore && hasHereNow) {
@@ -542,9 +566,11 @@ public class DrivingActivity extends AppCompatActivity {
         api.endOperation(null, "DRIVER_APP", new ApiService.EndOperationRequest(""))
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
-                    public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> res) {
+                    public void onResponse(Call<Map<String, Object>> call,
+                                           Response<Map<String, Object>> res) {
                         if (!res.isSuccessful()) {
-                            Toast.makeText(DrivingActivity.this, "운행 종료 실패: " + res.code(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(DrivingActivity.this,
+                                    "운행 종료 실패: " + res.code(), Toast.LENGTH_SHORT).show();
                             if (dialogToDismiss != null) dialogToDismiss.dismiss();
                             return;
                         }
@@ -556,17 +582,20 @@ public class DrivingActivity extends AppCompatActivity {
 
                         timerHandler.removeCallbacksAndMessages(null);
 
-                        Toast.makeText(DrivingActivity.this, "운행이 종료되었습니다.", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(DrivingActivity.this,
+                                "운행이 종료되었습니다.", Toast.LENGTH_SHORT).show();
 
                         Intent intent = new Intent(DrivingActivity.this, MainActivity.class);
-                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                         startActivity(intent);
                         finish();
                     }
 
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                        Toast.makeText(DrivingActivity.this, "종료 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(DrivingActivity.this,
+                                "종료 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                         if (dialogToDismiss != null) dialogToDismiss.dismiss();
                     }
                 });
@@ -580,7 +609,8 @@ public class DrivingActivity extends AppCompatActivity {
                         new ApiService.DelayOperationRequest(target))
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
-                    public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> res) {
+                    public void onResponse(Call<Map<String, Object>> call,
+                                           Response<Map<String, Object>> res) {
                         if (res.isSuccessful()) {
                             isDelayActive = target;
                             updateDelayButtonUI();
@@ -802,7 +832,7 @@ public class DrivingActivity extends AppCompatActivity {
 
         s = s.replaceAll("\\(.*?\\)", "");
         s = s.replaceAll("\\[.*?\\]", "");
-        s = s.replaceAll("\\{.*?\\}", "");
+        s = s.replaceAll("\\{.*?\\}", "");  // 중괄호 안 내용 제거
 
         s = s.replace("·", "");
         s = s.replace("ㆍ", "");
