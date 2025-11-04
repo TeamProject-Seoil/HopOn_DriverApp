@@ -2,13 +2,18 @@ package com.example.driver_bus_info.activity;
 
 import android.Manifest;
 import android.app.Dialog;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.util.Log;
 import android.view.Window;
 import android.view.WindowManager;
@@ -19,13 +24,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.widget.ImageViewCompat;
 
 import com.example.driver_bus_info.R;
 import com.example.driver_bus_info.service.ApiClient;
 import com.example.driver_bus_info.service.ApiService;
-
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -76,6 +81,12 @@ public class DrivingActivity extends AppCompatActivity {
     private TextView tvTotalReservedBadge;                  // 총 예약
     private TextView tvTotalOnboardBadge;                   // 현재 탑승 인원
 
+    // 이번 역 승하차 이전 카운트(알림용)
+    private int lastBoardingHereCount = 0;
+    private int lastAlightHereCount   = 0;
+
+    private static final String CHANNEL_ID_BOARDING_ALERT = "boarding_alert_channel";
+
     // 총 운행시간
     private TextView tvTotalDriveTime;
     private final Handler timerHandler = new Handler();
@@ -88,6 +99,8 @@ public class DrivingActivity extends AppCompatActivity {
             timerHandler.postDelayed(this, 1000);
         }
     };
+
+    private static final int REQ_POST_NOTI = 1001;
 
     private Button btnDelay, btnDriveEnd;
     private boolean isDelayActive = false;
@@ -211,6 +224,9 @@ public class DrivingActivity extends AppCompatActivity {
                         });
             }
         };
+
+        // 알림 권한 체크 (Android 13 이상)
+        ensureNotificationPermission();
 
         // 방어: operationId 없으면 메인으로 복귀
         if (operationId == null || operationId <= 0) {
@@ -426,6 +442,13 @@ public class DrivingActivity extends AppCompatActivity {
             tvTotalOnboardBadge.setText(" · 탑승 " + onboardNow + "명");
         }
 
+        // 이번역 승/하차 인원 0 → 1명 이상으로 변할 때 한 번만 알림 + 진동
+        boolean hadHereBefore = (lastBoardingHereCount > 0 || lastAlightHereCount > 0);
+        boolean hasHereNow    = (boardingHere > 0 || alightHere > 0);
+        if (!hadHereBefore && hasHereNow) {
+            showBoardingAlert(boardingHere, alightHere);
+        }
+
         // 탑승인수 변화에 따른 깜빡임 연출
         if (!firstPassengerUpdate) {
             if (onboardNow > lastOnboardCount) {
@@ -436,6 +459,10 @@ public class DrivingActivity extends AppCompatActivity {
         }
         firstPassengerUpdate = false;
         lastOnboardCount = onboardNow;
+
+        // 이번 역 승/하차 카운트 저장
+        lastBoardingHereCount = boardingHere;
+        lastAlightHereCount   = alightHere;
     }
 
     private void blinkPassengerHeader(int blinkColor) {
@@ -603,6 +630,83 @@ public class DrivingActivity extends AppCompatActivity {
                         // 무시
                     }
                 });
+    }
+
+    /** 알림 권한 체크/요청 (Android 13+) */
+    private void ensureNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(
+                        new String[]{ Manifest.permission.POST_NOTIFICATIONS },
+                        REQ_POST_NOTI
+                );
+            }
+        }
+    }
+
+    /** 이번역 승하차 인원 알림 + 진동 */
+    private void showBoardingAlert(int boardingHere, int alightHere) {
+
+        // Android 13 이상에서 알림 권한 없으면 바로 리턴
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        // 메시지 구성
+        String title = "이번 정류장 승하차 알림";
+        StringBuilder msg = new StringBuilder();
+        if (boardingHere > 0) msg.append("승차 ").append(boardingHere).append("명 ");
+        if (alightHere > 0) {
+            if (msg.length() > 0) msg.append(" / ");
+            msg.append("하차 ").append(alightHere).append("명");
+        }
+        if (msg.length() == 0) msg.append("승하차 인원 0명");
+
+        // 알림 채널 생성 (Oreo 이상)
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (nm == null) return;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel ch = nm.getNotificationChannel(CHANNEL_ID_BOARDING_ALERT);
+            if (ch == null) {
+                ch = new NotificationChannel(
+                        CHANNEL_ID_BOARDING_ALERT,
+                        "승하차 알림",
+                        NotificationManager.IMPORTANCE_HIGH
+                );
+                ch.enableVibration(true);
+                nm.createNotificationChannel(ch);
+            }
+        }
+
+        NotificationCompat.Builder builder =
+                new NotificationCompat.Builder(this, CHANNEL_ID_BOARDING_ALERT)
+                        .setSmallIcon(R.drawable.ic_bus_in)
+                        .setContentTitle(title)
+                        .setContentText(msg.toString())
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setAutoCancel(true);
+
+        nm.notify(1001, builder.build());
+
+        // 진동
+        Vibrator vib = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+        if (vib != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vib.vibrate(VibrationEffect.createOneShot(
+                        600, VibrationEffect.DEFAULT_AMPLITUDE));
+            } else {
+                // deprecated 이지만 하위버전 대응
+                vib.vibrate(600);
+            }
+        }
     }
 
     // ===== 스타일/유틸 =====
