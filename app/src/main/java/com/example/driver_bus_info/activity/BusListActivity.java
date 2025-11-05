@@ -444,7 +444,7 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
         if (code == null) return parseColor("#6B7280"); // 기타(회색)
         switch (code) {
             case 1: return parseColor("#0288D1"); // 공항
-            case 2: return parseColor("#6A1B9A"); // 마을
+            case 2: return parseColor("#2E7D32"); // 마을
             case 3: return parseColor("#1976D2"); // 간선
             case 4: return parseColor("#2E7D32"); // 지선
             case 5: return parseColor("#F9A825"); // 순환
@@ -627,10 +627,18 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
         searchingDialog = new Dialog(this);
         searchingDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         searchingDialog.setContentView(R.layout.popup_bus_search);
+
         if (searchingDialog.getWindow()!=null){
-            searchingDialog.getWindow().setLayout(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT);
-            searchingDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            searchingDialog.getWindow().setBackgroundDrawable(
+                    new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+            );
+            WindowManager.LayoutParams lp = searchingDialog.getWindow().getAttributes();
+            lp.width  = (int) (getResources().getDisplayMetrics().widthPixels * 0.85f); // ← 폭 85%
+            lp.height = WindowManager.LayoutParams.WRAP_CONTENT;
+            lp.gravity = android.view.Gravity.CENTER;
+            searchingDialog.getWindow().setAttributes(lp);
         }
+
         TextView tv = searchingDialog.findViewById(R.id.subText);
         if (tv != null) tv.setText("버스와 매칭 중…");
 
@@ -645,6 +653,7 @@ public class BusListActivity extends AppCompatActivity implements ActivityResult
         searchingDialog.setCancelable(false);
         searchingDialog.show();
     }
+
 
     private void dismissSearchingPopup() {
         if (searchingDialog!=null && searchingDialog.isShowing()) searchingDialog.dismiss();

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="300dp"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
     app:cardCornerRadius="20dp"
     android:background="@drawable/popup_background_flat">
@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp"
+        android:padding="20dp"
         android:gravity="center"
         android:background="@color/white">
 
@@ -36,7 +36,7 @@
             android:gravity="center"
             android:layout_marginBottom="18dp"/>
 
-        <!-- 로딩 Progress Indicator 추가 -->
+        <!-- 로딩 Progress Indicator -->
         <com.google.android.material.progressindicator.CircularProgressIndicator
             android:layout_width="40dp"
             android:layout_height="40dp"
