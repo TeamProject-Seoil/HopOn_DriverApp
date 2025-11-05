@@ -108,42 +108,39 @@
                 app:iconGravity="textStart"
                 app:iconPadding="8dp"/>
 
-            <androidx.constraintlayout.widget.ConstraintLayout
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:gravity="center">
+                android:orientation="horizontal"
+                android:layout_marginTop="12dp">
 
+                <!-- 왼쪽: ID / PW 찾기 (텍스트 왼쪽 정렬) -->
                 <Button
                     android:id="@+id/button_find_idpw"
-                    android:layout_width="84dp"
-                    android:layout_height="28dp"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:background="@android:color/transparent"
                     android:minWidth="0dp"
                     android:minHeight="0dp"
-                    android:padding="0dp"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp"
+                    android:gravity="start|center_vertical"
                     android:text="ID / PW 찾기"
                     android:textColor="#4A92FD"
-                    android:textSize="13sp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintVertical_bias="0.0" />
+                    android:textSize="13sp"/>
 
+                <!-- 오른쪽: 회원가입 -->
                 <TextView
                     android:id="@+id/text_signup"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="164dp"
-                    android:layout_marginEnd="20dp"
                     android:text="회원가입"
                     android:textColor="#4A92FD"
-                    android:textSize="13sp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@+id/button_find_idpw"
-                    app:layout_constraintTop_toTopOf="parent" />
-            </androidx.constraintlayout.widget.ConstraintLayout>
+                    android:textSize="13sp"/>
+            </LinearLayout>
+
+
 
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
