@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:padding="16dp">
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="24dp">
 
     <com.google.android.material.card.MaterialCardView
-        android:layout_width="320dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="center"
         app:cardCornerRadius="18dp"
         app:cardUseCompatPadding="true"
         app:cardElevation="10dp">
@@ -37,7 +38,7 @@
                 android:showDividers="middle"
                 android:background="@color/white">
 
-                <!-- 첫 줄: 아이콘 + 노선명 + (오른쪽) 노선유형 칩 -->
+                <!-- 첫 줄 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

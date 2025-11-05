@@ -586,7 +586,7 @@ public class MainActivity extends AppCompatActivity {
         if (code == null) return Color.parseColor("#6B7280");
         switch (code){
             case 1: return Color.parseColor("#0288D1"); // 공항
-            case 2: return Color.parseColor("#6A1B9A"); // 마을
+            case 2: return Color.parseColor("#2E7D32"); // 마을
             case 3: return Color.parseColor("#1976D2"); // 간선
             case 4: return Color.parseColor("#2E7D32"); // 지선
             case 5: return Color.parseColor("#F9A825"); // 순환
