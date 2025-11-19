@@ -26,8 +26,8 @@ public final class ApiClient {
     // 로컬 에뮬레이터 -> PC Spring 서버
     //private static final String BASE_URL = "http://10.0.2.2:8080/";
     //private static final String BASE_URL = "http://testhopon.p-e.kr:8080/";
-    private static final String BASE_URL = "http://168.138.168.66:8080/";
-
+    //private static final String BASE_URL = "http://168.138.168.66:8080/";
+    private static final String BASE_URL = "http://52.78.245.249:8080/";
     private static Retrofit retrofit;
     private static ApiService service;
 
